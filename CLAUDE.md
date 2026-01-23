@@ -21,29 +21,9 @@ npx skills validate ./skills/{skill-name}
 ### Creating a New Skill
 
 1. **Create directory**: `mkdir skills/{skill-name}` (use kebab-case)
-
-2. **Create SKILL.md** using the template at `templates/SKILL.template.md`:
-   ```markdown
-   ---
-   name: skill-name
-   description: Use when [condition]. Triggers on "[phrase 1]", "[phrase 2]"
-   ---
-
-   # skill-name
-
-   [Description and instructions...]
-   ```
-
-3. **Required sections**:
-   - `## When to Use` - Trigger scenarios
-   - `## Command` - The speakeasy command to run
-   - `## Example` - Working example with explanation
-
-4. **Recommended sections**:
-   - `## Prerequisites` - Setup requirements
-   - `## Decision Framework` - How to categorize issues
-   - `## What NOT to Do` - Anti-patterns
-   - `## Related Skills` - Navigation to other skills
+2. **Copy template**: `cp templates/SKILL.template.md skills/{skill-name}/SKILL.md`
+3. **Edit the skill**: Update frontmatter `name` and `description`, fill in sections
+4. **Reference existing skills** in `skills/` for examples of the pattern
 
 ### Modifying Existing Skills
 
@@ -77,41 +57,16 @@ The `description` in frontmatter is critical for skill activation. Include:
 - **Trigger phrases**: Exact phrases users might say
 - **Keywords**: Terms that should activate this skill
 
-Good:
-```yaml
-description: Use when SDK generation failed, seeing "Step Failed: Workflow", or `speakeasy run` errors
-```
+**Good example** - see `skills/diagnose-generation-failure/SKILL.md`
 
-Bad:
-```yaml
-description: Helps with generation issues
-```
+**Bad**: `description: Helps with generation issues` (too vague, no trigger phrases)
 
-### Decision Framework
+### Template Sections
 
-All diagnostic skills should include this pattern:
-
-```markdown
-## Decision Framework
-
-| Issue Type | Action | Example |
-|------------|--------|---------|
-| Naming issues | Fix with overlays | Bad operationIds |
-| Structural issues | Ask the user | Invalid $ref |
-| Design issues | Produce strategy doc | Auth design |
-```
-
-### Anti-Patterns Section
-
-Document what the AI should NOT do:
-
-```markdown
-## What NOT to Do
-
-- **Do NOT** modify source OpenAPI specs directly
-- **Do NOT** disable lint rules to hide errors
-- **Do NOT** assume you can fix structural problems
-```
+See `templates/SKILL.template.md` for the complete structure including:
+- Decision Framework table
+- Anti-Patterns section
+- Related Skills links
 
 ## Plugin Configuration
 
