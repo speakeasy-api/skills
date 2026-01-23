@@ -1,120 +1,203 @@
-# Claude Code Instructions
+# CLAUDE.md
 
-This file contains Claude-specific guidance for working with Speakeasy Agent Skills.
+Claude-specific instructions for working on the Speakeasy Agent Skills repository.
 
-## Installation
+## Quick Reference
 
 ```bash
-# Via skills CLI
-npx skills add speakeasy-api/agent-skills
+# Create a new skill
+mkdir skills/{skill-name}
+# Then create skills/{skill-name}/SKILL.md using the template
 
-# Via Claude Code marketplace
-/plugin marketplace add speakeasy-api/agent-skills
-/plugin install speakeasy
+# Test a skill locally
+cp -r skills/{skill-name} ~/.claude/skills/
+
+# Validate skill format
+npx skills validate ./skills/{skill-name}
 ```
 
-## Skill Invocation
+## Working on This Repository
 
-Skills are namespaced under `speakeasy:`:
+### Creating a New Skill
 
-```
-/speakeasy:start-new-sdk-project
-/speakeasy:validate-openapi-spec
-/speakeasy:regenerate-sdk
-```
+1. **Create directory**: `mkdir skills/{skill-name}` (use kebab-case)
 
-Or invoke via the Skill tool:
-```
-skill: "speakeasy:start-new-sdk-project"
-```
+2. **Create SKILL.md** using the template at `templates/SKILL.template.md`:
+   ```markdown
+   ---
+   name: skill-name
+   description: Use when [condition]. Triggers on "[phrase 1]", "[phrase 2]"
+   ---
 
-## Speakeasy CLI Prerequisites
+   # skill-name
 
-Before using these skills, ensure:
-
-1. **Speakeasy CLI is installed**:
-   ```bash
-   brew install speakeasy-api/homebrew-tap/speakeasy
-   # or
-   curl -fsSL https://raw.githubusercontent.com/speakeasy-api/speakeasy/main/install.sh | sh
+   [Description and instructions...]
    ```
 
-2. **Authentication is configured** (for non-interactive environments):
-   ```bash
-   export SPEAKEASY_API_KEY="<your-api-key>"
-   ```
+3. **Required sections**:
+   - `## When to Use` - Trigger scenarios
+   - `## Command` - The speakeasy command to run
+   - `## Example` - Working example with explanation
 
-## Workflow Patterns
+4. **Recommended sections**:
+   - `## Prerequisites` - Setup requirements
+   - `## Decision Framework` - How to categorize issues
+   - `## What NOT to Do` - Anti-patterns
+   - `## Related Skills` - Navigation to other skills
 
-### New SDK Project
+### Modifying Existing Skills
+
+1. **Read the skill first** - Understand current behavior before changing
+2. **Preserve frontmatter** - `name` and `description` are required
+3. **Check related skills** - Changes may affect linked skills
+4. **Keep under 500 lines** - Large skills waste context
+
+### Running Speakeasy Commands
+
+When testing or demonstrating commands:
 
 ```bash
-# 1. Initialize with quickstart
-speakeasy quickstart -s ./openapi.yaml -t typescript
-
-# 2. Generate the SDK
-speakeasy run
-```
-
-### Iterative Development
-
-```bash
-# After spec changes, regenerate
+# Use --output console for structured output
 speakeasy run --output console
 
-# Validate changes
-speakeasy lint openapi -s ./openapi.yaml
-```
-
-### Fixing Issues with Overlays
-
-```bash
-# Get AI suggestions for operation IDs
-speakeasy suggest operation-ids -s ./openapi.yaml -o ./overlay.yaml
-
-# Apply overlay
-speakeasy overlay apply -s ./openapi.yaml -o ./overlay.yaml
-```
-
-## Error Handling
-
-When SDK generation fails:
-
-1. **Check the error output** - Look for specific validation errors
-2. **Use `diagnose-generation-failure` skill** - Provides troubleshooting steps
-3. **Create overlays for fixable issues** - Don't modify source specs
-4. **Escalate structural issues** - Ask the user for guidance
-
-## Context Efficiency
-
-These skills are designed for efficient context usage:
-
-- **Metadata only** (~100 tokens): Skill names and descriptions load at startup
-- **Full instructions** (< 500 lines): Loaded when skill activates
-- **On-demand resources**: Additional files loaded as needed
-
-When running Speakeasy commands, reduce output context:
-
-```bash
-# Limit output to last 50 lines
-speakeasy run 2>&1 | tail -50
+# Pipe large output to reduce context
+speakeasy lint openapi -s spec.yaml 2>&1 | tail -50
 
 # Filter for errors only
-speakeasy lint openapi -s spec.yaml 2>&1 | grep -i error
+speakeasy lint openapi -s spec.yaml 2>&1 | grep -E "(error|warning)"
 ```
 
-## Supported Languages
+## Skill Writing Guidelines
 
-Speakeasy generates SDKs for:
+### Description Field
 
-| Language | Target Flag |
-|----------|-------------|
-| TypeScript | `typescript` |
-| Python | `python` |
-| Go | `go` |
-| Java | `java` |
-| C# | `csharp` |
-| PHP | `php` |
-| Ruby | `ruby` |
-| Kotlin | `kotlin` |
-| Terraform | `terraform` |
+The `description` in frontmatter is critical for skill activation. Include:
+
+- **Trigger condition**: "Use when X"
+- **Trigger phrases**: Exact phrases users might say
+- **Keywords**: Terms that should activate this skill
+
+Good:
+```yaml
+description: Use when SDK generation failed, seeing "Step Failed: Workflow", or `speakeasy run` errors
+```
+
+Bad:
+```yaml
+description: Helps with generation issues
+```
+
+### Decision Framework
+
+All diagnostic skills should include this pattern:
+
+```markdown
+## Decision Framework
+
+| Issue Type | Action | Example |
+|------------|--------|---------|
+| Naming issues | Fix with overlays | Bad operationIds |
+| Structural issues | Ask the user | Invalid $ref |
+| Design issues | Produce strategy doc | Auth design |
+```
+
+### Anti-Patterns Section
+
+Document what the AI should NOT do:
+
+```markdown
+## What NOT to Do
+
+- **Do NOT** modify source OpenAPI specs directly
+- **Do NOT** disable lint rules to hide errors
+- **Do NOT** assume you can fix structural problems
+```
+
+## Plugin Configuration
+
+### Namespace
+
+All skills are namespaced under `speakeasy:` via `.claude-plugin/plugin.json`:
+
+```json
+{
+  "name": "speakeasy",
+  "skills": "../skills/"
+}
+```
+
+Skills appear as `speakeasy:skill-name` in Claude Code.
+
+### Adding Skills
+
+Skills are auto-discovered. Just create the directory and SKILL.md.
+
+## Testing Skills
+
+### Local Testing
+
+```bash
+# Copy to Claude's skills directory
+cp -r skills/{skill-name} ~/.claude/skills/
+
+# Reload Claude Code and test trigger phrases
+```
+
+### Validation
+
+```bash
+npx skills validate ./skills/{skill-name}
+```
+
+## Common Tasks
+
+### Add a new skill for a speakeasy command
+
+1. Check if a related skill exists
+2. Create `skills/{command-name}/SKILL.md`
+3. Follow the template structure
+4. Include trigger phrases in description
+5. Add decision framework if diagnostic
+6. Update README.md skill table
+
+### Update an existing skill
+
+1. Read the current skill
+2. Make minimal changes
+3. Preserve frontmatter format
+4. Check for breaking changes to related skills
+
+### Fix a skill that isn't triggering
+
+1. Check the `description` field has trigger phrases
+2. Ensure phrases match how users ask
+3. Add more keyword variations
+4. Test with actual trigger phrases
+
+## Commit Guidelines
+
+```bash
+# Create a branch first
+git checkout -b feat/add-new-skill
+
+# Commit with clear message
+git commit -m "Add skill for [purpose]
+
+- Created skills/{name}/SKILL.md
+- Added trigger phrases for [scenarios]
+- Linked to related skills"
+
+# Push and create PR
+git push -u origin feat/add-new-skill
+```
+
+## File Reference
+
+| File | Purpose |
+|------|---------|
+| `skills/*/SKILL.md` | Skill definitions |
+| `templates/SKILL.template.md` | Template for new skills |
+| `.claude-plugin/plugin.json` | Plugin manifest (namespace) |
+| `README.md` | End-user documentation |
+| `AGENTS.md` | General agent guidance |
+| `CLAUDE.md` | This file |

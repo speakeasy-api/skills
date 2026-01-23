@@ -71,9 +71,17 @@ speakeasy-api/agent-skills/
 │   ├── regenerate-sdk/
 │   │   └── SKILL.md
 │   └── ... (12 skills total)
+├── templates/
+│   └── SKILL.template.md
+├── AGENTS.md              # Contributor guidance for AI agents
+├── CLAUDE.md              # Claude-specific contributor guidance
 ├── README.md
 └── LICENSE
 ```
+
+## Contributing
+
+See [AGENTS.md](./AGENTS.md) for guidance on creating and maintaining skills.
 
 ## Supported Agents
 
