@@ -61,7 +61,7 @@ The `--schema` flag accepts multiple source types:
 | Registry source (tagged) | `source-name@tag` | `my-api@latest` |
 | Registry source (full) | `org/workspace/source@tag` | `acme/prod/my-api@v2` |
 
-**Registry sources** are OpenAPI specs you manage in your Speakeasy workspace. Use `speakeasy status --output console` to see available sources. This lets you generate SDKs from specs managed in Speakeasy without needing local files.
+**Registry sources** are OpenAPI specs you manage in your Speakeasy workspace. Use `speakeasy status --output json` to see available sources. This lets you generate SDKs from specs managed in Speakeasy without needing local files.
 
 ## Supported Targets
 

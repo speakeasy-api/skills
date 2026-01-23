@@ -42,10 +42,10 @@ Note: Environment variable takes precedence over config file.
 ## Verifying Authentication
 
 ```bash
-speakeasy status --output console
+speakeasy status --output json
 ```
 
-Returns workspace info if authenticated; `unauthorized` error if not.
+Returns workspace info as JSON if authenticated; `unauthorized` error if not.
 
 ## Common Errors
 
