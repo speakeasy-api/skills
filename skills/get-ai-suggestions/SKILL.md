@@ -69,7 +69,7 @@ sources:
       - location: ./operation-ids-overlay.yaml
 
 # Regenerate
-speakeasy run
+speakeasy run --output console
 ```
 
 ## Related Skills

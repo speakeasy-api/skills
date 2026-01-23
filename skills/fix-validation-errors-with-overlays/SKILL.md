@@ -49,7 +49,7 @@ speakeasy suggest operation-ids -s openapi.yaml -o fixes.yaml
 # Edit .speakeasy/workflow.yaml to include overlay
 
 # 3. Regenerate
-speakeasy run
+speakeasy run --output console
 ```
 
 ## Related Skills

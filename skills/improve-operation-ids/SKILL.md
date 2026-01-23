@@ -57,7 +57,7 @@ Use `x-speakeasy-group: users` and `x-speakeasy-name-override: list` to achieve 
 speakeasy suggest operation-ids -s openapi.yaml -o operation-ids.yaml
 
 # Add to workflow and regenerate
-speakeasy run
+speakeasy run --output console
 ```
 
 ## Manual Override
