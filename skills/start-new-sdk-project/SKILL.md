@@ -1,11 +1,19 @@
 ---
 name: start-new-sdk-project
 description: Use when starting a new SDK project or first-time Speakeasy setup. Triggers on "create SDK", "generate SDK", "new SDK", "quickstart", "get started with Speakeasy", "initialize SDK project"
+license: Apache-2.0
 ---
 
 # start-new-sdk-project
 
 Use `speakeasy quickstart` to initialize a new SDK project with workflow configuration and generate the SDK.
+
+## When to Use
+
+- Starting a brand new SDK project
+- No `.speakeasy/workflow.yaml` exists yet
+- First-time Speakeasy setup
+- User says: "create SDK", "new SDK", "quickstart", "get started with Speakeasy"
 
 ## Inputs
 
@@ -34,7 +42,7 @@ See `configure-authentication` skill for details.
 ## Command
 
 ```bash
-speakeasy quickstart --skip-interactive -s <schema> -t <target> -n <name> -p <package-name>
+speakeasy quickstart --skip-interactive --output console -s <schema> -t <target> -n <name> -p <package-name>
 ```
 
 ## Flags
@@ -47,6 +55,7 @@ speakeasy quickstart --skip-interactive -s <schema> -t <target> -n <name> -p <pa
 | `--name` | `-n` | SDK name in PascalCase (e.g., `MyCompanySDK`) |
 | `--package-name` | `-p` | Package name (language variants auto-inferred) |
 | `--out-dir` | `-o` | Output directory (default: current dir) |
+| `--output` | | Output format: `summary`, `console`, `mermaid`. **Use `console` for AI agents** |
 | `--init-git` | | Initialize git repo (omit to skip in non-interactive mode) |
 
 ## Schema Sources
@@ -81,28 +90,28 @@ The `--schema` flag accepts multiple source types:
 
 ```bash
 # From local OpenAPI file
-speakeasy quickstart --skip-interactive \
+speakeasy quickstart --skip-interactive --output console \
   -s ./api/openapi.yaml \
   -t typescript \
   -n "AcmeSDK" \
   -p "acme-sdk"
 
 # From URL
-speakeasy quickstart --skip-interactive \
+speakeasy quickstart --skip-interactive --output console \
   -s "https://api.example.com/openapi.json" \
   -t python \
   -n "AcmeSDK" \
   -p "acme-sdk"
 
 # From registry source (managed in your Speakeasy workspace)
-speakeasy quickstart --skip-interactive \
+speakeasy quickstart --skip-interactive --output console \
   -s "my-api@latest" \
   -t go \
   -n "AcmeSDK" \
   -p "acme-sdk"
 
 # With custom output directory and git init
-speakeasy quickstart --skip-interactive \
+speakeasy quickstart --skip-interactive --output console \
   -s ./api/openapi.yaml \
   -t python \
   -n "AcmeSDK" \

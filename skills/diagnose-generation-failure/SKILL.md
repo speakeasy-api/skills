@@ -1,11 +1,18 @@
 ---
 name: diagnose-generation-failure
 description: Use when SDK generation failed or seeing errors. Triggers on "generation failed", "speakeasy run failed", "SDK build error", "workflow failed", "Step Failed", "why did generation fail"
+license: Apache-2.0
 ---
 
 # diagnose-generation-failure
 
 When SDK generation fails, diagnose the root cause and determine the fix strategy.
+
+## When to Use
+
+- `speakeasy run` failed with errors
+- SDK generation produced unexpected results
+- User says: "generation failed", "SDK build error", "why did generation fail"
 
 ## Inputs
 

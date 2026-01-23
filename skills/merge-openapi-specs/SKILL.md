@@ -1,11 +1,19 @@
 ---
 name: merge-openapi-specs
 description: Use when combining multiple OpenAPI specs into one. Triggers on "merge specs", "combine specs", "multiple OpenAPI files", "microservices specs", "speakeasy merge"
+license: Apache-2.0
 ---
 
 # merge-openapi-specs
 
 Use `speakeasy merge` to combine multiple specs into one.
+
+## When to Use
+
+- Combining microservice specs into a unified API
+- Merging versioned spec files
+- Combining public and internal API specs
+- User says: "merge specs", "combine specs", "multiple OpenAPI files"
 
 ## Inputs
 
@@ -47,6 +55,14 @@ When specs have conflicts:
 - Later specs override earlier ones for duplicate paths
 - Schema conflicts may require manual resolution
 - Review merged output for correctness
+
+## Troubleshooting
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Schema conflicts | Duplicate schema names | Rename schemas before merging |
+| Missing references | Cross-spec $ref | Ensure all referenced schemas are included |
+| Duplicate paths | Same endpoint in multiple specs | Remove duplicates or use different base paths |
 
 ## Related Skills
 

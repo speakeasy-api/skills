@@ -1,11 +1,19 @@
 ---
 name: create-openapi-overlay
 description: Use when customizing SDK generation without editing the source spec. Triggers on "create overlay", "overlay file", "customize SDK", "can't modify spec", "x-speakeasy extensions", "SDK customization"
+license: Apache-2.0
 ---
 
 # create-openapi-overlay
 
 Overlays let you customize an OpenAPI spec for SDK generation without modifying the source.
+
+## When to Use
+
+- You need to customize SDK output but can't modify the source spec
+- Adding x-speakeasy extensions for grouping, naming, or retries
+- Fixing lint issues without editing the original file
+- User says: "create overlay", "customize SDK", "can't modify spec"
 
 ## Inputs
 
@@ -41,7 +49,7 @@ Or generate an overlay by comparing two specs:
 speakeasy overlay compare -b <before-spec> -a <after-spec> -o <output-overlay>
 ```
 
-## When to Use Overlays
+## Overlay Capabilities
 
 **Overlays are great for:**
 - Renaming operations (x-speakeasy-name-override)
@@ -53,9 +61,6 @@ speakeasy overlay compare -b <before-spec> -a <after-spec> -o <output-overlay>
 - Fixing spec issues without modifying the source
 - Adding new endpoints or schemas
 - Making portable patches that work across spec versions
-
-**Overlays cannot easily handle:**
-- Deduplication of schemas (requires structural analysis)
 
 ## Example Overlay
 
@@ -94,6 +99,20 @@ This produces: `sdk.users.list()`, `sdk.users.create()`, `sdk.users.get()`, `sdk
 | `$.paths['/users/{id}'].*` | All operations on /users/{id} |
 | `$.components.schemas.User` | User schema |
 | `$.info` | API info object |
+
+## What NOT to Do
+
+- **Do NOT** use overlays for invalid YAML/JSON syntax errors
+- **Do NOT** try to deduplicate schemas with overlays (requires structural analysis)
+- **Do NOT** fix broken $ref paths with overlays - fix the source spec instead
+
+## Troubleshooting
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "target not found" | JSONPath doesn't match spec structure | Verify exact path with spec inspection |
+| Changes not applied | Overlay not in workflow | Add overlay to `workflow.yaml` sources |
+| YAML parse error | Invalid overlay syntax | Check YAML indentation and structure |
 
 ## Related Skills
 

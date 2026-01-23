@@ -1,11 +1,18 @@
 ---
 name: get-ai-suggestions
 description: Use when wanting AI-powered improvements for your spec. Triggers on "suggest improvements", "improve my spec", "speakeasy suggest", "better operation names", "suggest error types", "AI suggestions"
+license: Apache-2.0
 ---
 
 # get-ai-suggestions
 
 Use `speakeasy suggest` for AI-powered spec improvements.
+
+## When to Use
+
+- Want AI-generated suggestions for operation IDs or error types
+- Looking to improve spec quality automatically
+- User says: "suggest improvements", "AI suggestions", "better operation names"
 
 ## Inputs
 
@@ -71,6 +78,14 @@ sources:
 # Regenerate
 speakeasy run --output console
 ```
+
+## Troubleshooting
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "unauthorized" | Missing API key | Set `SPEAKEASY_API_KEY` env var |
+| No suggestions | Spec already well-named | No action needed |
+| Timeout | Large spec | Try smaller sections or wait longer |
 
 ## Related Skills
 

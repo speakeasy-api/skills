@@ -1,6 +1,7 @@
 ---
 name: skill-name
 description: Use when [trigger condition]. Triggers on "[phrase 1]", "[phrase 2]", or "[phrase 3]"
+license: Apache-2.0
 ---
 
 # skill-name
@@ -13,6 +14,20 @@ description: Use when [trigger condition]. Triggers on "[phrase 1]", "[phrase 2]
 - [Scenario 2 - describe the situation]
 - User says: "[trigger phrase example]"
 - User asks: "[question example]"
+
+## Inputs
+
+| Input | Required | Description |
+|-------|----------|-------------|
+| [Input name] | Yes/No | [What it is and how to provide it] |
+| [Another input] | Yes/No | [Description] |
+
+## Outputs
+
+| Output | Description |
+|--------|-------------|
+| [Output name] | [What gets produced] |
+| [Another output] | [Description] |
 
 ## Prerequisites
 

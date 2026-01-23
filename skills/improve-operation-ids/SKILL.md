@@ -1,11 +1,18 @@
 ---
 name: improve-operation-ids
 description: Use when SDK methods have ugly auto-generated names. Triggers on "ugly method names", "GetApiV1Users", "improve operation IDs", "sdk.users.list() style", "better SDK naming", "x-speakeasy-group"
+license: Apache-2.0
 ---
 
 # improve-operation-ids
 
 Improve SDK method naming from auto-generated to intuitive grouped methods.
+
+## When to Use
+
+- SDK methods have ugly auto-generated names like `GetApiV1Users`
+- You want grouped methods like `sdk.users.list()`
+- User says: "ugly method names", "improve operation IDs", "better SDK naming"
 
 ## Inputs
 
@@ -75,6 +82,20 @@ actions:
 ```
 
 This produces: `sdk.users.listAll()`
+
+## What NOT to Do
+
+- **Do NOT** modify operationIds directly in the source spec if externally managed
+- **Do NOT** use generic names like `get`, `post` without context
+- **Do NOT** forget to add the overlay to `workflow.yaml` after generating
+
+## Troubleshooting
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Names unchanged | Missing overlay in workflow | Add overlay to `workflow.yaml` sources |
+| "unauthorized" | Missing API key | Set `SPEAKEASY_API_KEY` env var |
+| Duplicate names | Similar endpoints | Use unique `x-speakeasy-name-override` values |
 
 ## Related Skills
 

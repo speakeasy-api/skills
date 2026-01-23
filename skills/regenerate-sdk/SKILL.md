@@ -1,11 +1,19 @@
 ---
 name: regenerate-sdk
 description: Use when spec changed and SDK needs regenerating. Triggers on "regenerate SDK", "run speakeasy", "speakeasy run", "rebuild SDK", "update SDK", "spec changed"
+license: Apache-2.0
 ---
 
 # regenerate-sdk
 
 Use `speakeasy run` to execute the workflow and regenerate SDKs.
+
+## When to Use
+
+- OpenAPI spec has been updated
+- Workflow or overlay configuration changed
+- Regenerating with latest Speakeasy version
+- User says: "regenerate SDK", "run speakeasy", "spec changed"
 
 ## Inputs
 
@@ -76,6 +84,12 @@ For commands with large outputs, pipe to `grep` or `tail` to reduce context:
 ```bash
 speakeasy run --output console 2>&1 | tail -50
 ```
+
+## What NOT to Do
+
+- **Do NOT** run without checking spec validity first if there were recent changes
+- **Do NOT** ignore generation warnings - they may indicate SDK quality issues
+- **Do NOT** delete `.speakeasy/` directory without understanding its purpose
 
 ## Troubleshooting
 

@@ -1,11 +1,18 @@
 ---
 name: fix-validation-errors-with-overlays
 description: Use when you have lint errors but can't modify the source spec. Triggers on "fix with overlay", "can't edit spec", "add missing descriptions", "fix validation errors", "overlay fix"
+license: Apache-2.0
 ---
 
 # fix-validation-errors-with-overlays
 
 Fix OpenAPI validation errors using overlays when you can't modify the source spec.
+
+## When to Use
+
+- Lint errors exist but source spec can't be edited
+- Adding missing descriptions, tags, or operation names
+- User says: "fix with overlay", "can't edit spec", "add missing descriptions"
 
 ## Inputs
 
@@ -30,14 +37,17 @@ Fix OpenAPI validation errors using overlays when you can't modify the source sp
 | Need operation grouping | `x-speakeasy-group` |
 | Need retry config | `x-speakeasy-retries` |
 
-## NOT Overlay-Appropriate
+## What NOT to Do
 
-| Issue | Why |
-|-------|-----|
-| Invalid JSON/YAML | Syntax error in source |
-| Missing required fields | Schema incomplete |
-| Broken $ref | Source needs fixing |
-| Wrong data types | API design issue |
+| Issue | Why Overlays Won't Help |
+|-------|-------------------------|
+| Invalid JSON/YAML | Syntax error in source - must fix source |
+| Missing required fields | Schema incomplete - must fix source |
+| Broken $ref | Source needs fixing directly |
+| Wrong data types | API design issue - requires spec changes |
+
+- **Do NOT** try to fix structural errors with overlays
+- **Do NOT** ignore errors that need source spec fixes
 
 ## Quick Fix Workflow
 
@@ -51,6 +61,14 @@ speakeasy suggest operation-ids -s openapi.yaml -o fixes.yaml
 # 3. Regenerate
 speakeasy run --output console
 ```
+
+## Troubleshooting
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Overlay not applied | Not in workflow.yaml | Add overlay to sources.overlays in workflow |
+| Target not found | Wrong JSONPath | Verify path matches spec exactly |
+| Errors persist | Issue not overlay-appropriate | Check if issue needs source spec fix |
 
 ## Related Skills
 

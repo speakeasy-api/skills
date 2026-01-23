@@ -1,11 +1,19 @@
 ---
 name: configure-authentication
 description: Use when setting up Speakeasy auth or troubleshooting auth errors. Triggers on "set up API key", "configure auth", "speakeasy auth login", "unauthorized error", "authentication failed", "how to authenticate"
+license: Apache-2.0
 ---
 
 # configure-authentication
 
 Set up authentication for Speakeasy CLI commands.
+
+## When to Use
+
+- First time setting up Speakeasy CLI
+- Getting "unauthorized" errors from commands
+- Setting up CI/CD or AI agent environments
+- User says: "set up API key", "configure auth", "authentication failed"
 
 ## Inputs
 
@@ -47,12 +55,13 @@ speakeasy status --output json
 
 Returns workspace info as JSON if authenticated; `unauthorized` error if not.
 
-## Common Errors
+## Troubleshooting
 
-| Error | Solution |
-|-------|----------|
-| `unauthorized` | Run `speakeasy auth login` or set `SPEAKEASY_API_KEY` |
-| `workspace not found` | Check workspace ID in `~/.speakeasy/config.yaml` |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `unauthorized` | Missing or invalid API key | Run `speakeasy auth login` or set `SPEAKEASY_API_KEY` |
+| `workspace not found` | Wrong workspace configured | Check workspace ID in `~/.speakeasy/config.yaml` |
+| Token expired | Session timed out | Re-run `speakeasy auth login` |
 
 ## Config File Location
 
