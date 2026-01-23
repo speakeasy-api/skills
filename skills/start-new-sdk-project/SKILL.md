@@ -42,12 +42,26 @@ speakeasy quickstart --skip-interactive -s <schema> -t <target> -n <name> -p <pa
 | Flag | Short | Description |
 |------|-------|-------------|
 | `--skip-interactive` | | **Required for AI agents.** Skips all prompts |
-| `--schema` | `-s` | OpenAPI spec: local file, URL, or registry (`namespace` or `org/workspace/namespace@tag`) |
+| `--schema` | `-s` | OpenAPI spec source (see Schema Sources below) |
 | `--target` | `-t` | Target language (see Supported Targets) |
 | `--name` | `-n` | SDK name in PascalCase (e.g., `MyCompanySDK`) |
 | `--package-name` | `-p` | Package name (language variants auto-inferred) |
 | `--out-dir` | `-o` | Output directory (default: current dir) |
 | `--init-git` | | Initialize git repo (omit to skip in non-interactive mode) |
+
+## Schema Sources
+
+The `--schema` flag accepts multiple source types:
+
+| Source | Format | Example |
+|--------|--------|---------|
+| Local file | Path | `./api/openapi.yaml` |
+| URL | HTTP(S) | `https://api.example.com/openapi.json` |
+| Registry (short) | `namespace` | `my-api` |
+| Registry (tagged) | `namespace@tag` | `my-api@latest` |
+| Registry (full) | `org/workspace/namespace@tag` | `acme/prod/my-api@v2` |
+
+**Registry references** point to OpenAPI specs you've published to your Speakeasy workspace. Use `speakeasy status` to see available namespaces. This lets you generate SDKs from specs managed in Speakeasy without local files.
 
 ## Supported Targets
 
@@ -66,10 +80,24 @@ speakeasy quickstart --skip-interactive -s <schema> -t <target> -n <name> -p <pa
 ## Example
 
 ```bash
-# Non-interactive mode (recommended for AI agents)
+# From local OpenAPI file
 speakeasy quickstart --skip-interactive \
   -s ./api/openapi.yaml \
   -t typescript \
+  -n "AcmeSDK" \
+  -p "acme-sdk"
+
+# From URL
+speakeasy quickstart --skip-interactive \
+  -s "https://api.example.com/openapi.json" \
+  -t python \
+  -n "AcmeSDK" \
+  -p "acme-sdk"
+
+# From Speakeasy registry (spec managed in your workspace)
+speakeasy quickstart --skip-interactive \
+  -s "my-api@latest" \
+  -t go \
   -n "AcmeSDK" \
   -p "acme-sdk"
 
@@ -81,13 +109,6 @@ speakeasy quickstart --skip-interactive \
   -p "acme-sdk" \
   -o ./sdks/python \
   --init-git
-
-# Using registry schema
-speakeasy quickstart --skip-interactive \
-  -s "my-namespace@latest" \
-  -t go \
-  -n "AcmeSDK" \
-  -p "acme-sdk"
 ```
 
 ## What It Creates
