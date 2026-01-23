@@ -11,7 +11,7 @@ Use `speakeasy quickstart` to initialize a new SDK project with workflow configu
 
 | Input | Required | Description |
 |-------|----------|-------------|
-| OpenAPI spec | Yes | Local file, URL, or registry reference |
+| OpenAPI spec | Yes | Local file, URL, or Speakeasy source reference |
 | Target language | Yes | typescript, python, go, java, csharp, php, ruby, kotlin, terraform |
 | SDK name | Yes (non-interactive) | PascalCase name (e.g., `AcmeSDK`) |
 | Package name | Yes (non-interactive) | Package identifier (e.g., `acme-sdk`) |
@@ -53,15 +53,15 @@ speakeasy quickstart --skip-interactive -s <schema> -t <target> -n <name> -p <pa
 
 The `--schema` flag accepts multiple source types:
 
-| Source | Format | Example |
-|--------|--------|---------|
+| Type | Format | Example |
+|------|--------|---------|
 | Local file | Path | `./api/openapi.yaml` |
 | URL | HTTP(S) | `https://api.example.com/openapi.json` |
-| Registry (short) | `namespace` | `my-api` |
-| Registry (tagged) | `namespace@tag` | `my-api@latest` |
-| Registry (full) | `org/workspace/namespace@tag` | `acme/prod/my-api@v2` |
+| Source (short) | `source-name` | `my-api` |
+| Source (tagged) | `source-name@tag` | `my-api@latest` |
+| Source (full) | `org/workspace/source@tag` | `acme/prod/my-api@v2` |
 
-**Registry references** point to OpenAPI specs you've published to your Speakeasy workspace. Use `speakeasy status` to see available namespaces. This lets you generate SDKs from specs managed in Speakeasy without local files.
+**Source references** point to OpenAPI specs you manage in your Speakeasy workspace. Use `speakeasy status` to see available sources. This lets you generate SDKs from sources managed in Speakeasy without needing local files.
 
 ## Supported Targets
 
@@ -94,7 +94,7 @@ speakeasy quickstart --skip-interactive \
   -n "AcmeSDK" \
   -p "acme-sdk"
 
-# From Speakeasy registry (spec managed in your workspace)
+# From Speakeasy source (managed in your workspace)
 speakeasy quickstart --skip-interactive \
   -s "my-api@latest" \
   -t go \
