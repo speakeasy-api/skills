@@ -122,9 +122,17 @@ speakeasy quickstart --skip-interactive \
 2. Add more targets to `.speakeasy/workflow.yaml` for multi-language support
 3. Run `speakeasy run` to regenerate after spec or config changes
 
+## Troubleshooting
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Workflow already exists | `.speakeasy/workflow.yaml` already present | Use `regenerate-sdk` skill instead |
+| Unauthorized | Missing or invalid API key | Run `speakeasy auth login` or set `SPEAKEASY_API_KEY` |
+| Schema not found | Invalid path, URL, or source name | Verify path exists or use `speakeasy pull --list` for sources |
+
 ## Related Skills
 
 - `configure-authentication` - Set up API key before running quickstart
 - `validate-openapi-spec` - Check spec for issues before generating
-- `regenerate-sdk` - Regenerate after spec changes
+- `regenerate-sdk` - **Use this if workflow already exists**
 - `improve-operation-ids` - Improve SDK method names
