@@ -32,57 +32,34 @@ Use `kebab-case` for directory names (e.g., `validate-openapi-spec`).
 
 ### 2. SKILL.md Format
 
-Every skill must have a `SKILL.md` file with YAML frontmatter:
+Every skill must have a `SKILL.md` file with YAML frontmatter. See `templates/SKILL.template.md` for a complete example.
 
-```markdown
+**Required structure:**
+
+```yaml
 ---
 name: skill-name
 description: Use when [trigger condition]. Include phrases like "X", "Y", or "Z".
 ---
-
-# skill-name
-
-[One-sentence summary of what this skill does.]
-
-## When to Use
-
-- [Scenario 1]
-- [Scenario 2]
-- [Trigger phrase example]
-
-## Prerequisites
-
-[Any required setup, environment variables, or dependencies]
-
-## Command
-
-```bash
-speakeasy [command] [args]
 ```
 
-## Example
+**Required sections:**
 
-```bash
-# [Description of example]
-speakeasy [command] [example args]
-```
+| Section | Purpose |
+|---------|---------|
+| `# skill-name` | Title matching the directory name |
+| `## When to Use` | Trigger scenarios and example phrases |
+| `## Command` | The speakeasy command to run |
+| `## Example` | Working example with explanation |
 
-## Decision Framework
+**Recommended sections:**
 
-| Situation | Action |
-|-----------|--------|
-| [Condition 1] | [What to do] |
-| [Condition 2] | [What to do] |
-
-## What NOT to Do
-
-- [Anti-pattern 1]
-- [Anti-pattern 2]
-
-## Related Skills
-
-- `skill-name` - [When to use instead or after]
-```
+| Section | Purpose |
+|---------|---------|
+| `## Prerequisites` | Required setup, env vars, dependencies |
+| `## Decision Framework` | Table mapping situations to actions |
+| `## What NOT to Do` | Anti-patterns the AI should avoid |
+| `## Related Skills` | Links to related skills |
 
 ### 3. Naming Conventions
 
