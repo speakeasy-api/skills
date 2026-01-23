@@ -1,11 +1,25 @@
 ---
 name: get-ai-suggestions
-description: Use when SDK method names are ugly, wanting to improve operation IDs, or asking "how can I improve my spec"
+description: Use when wanting AI-powered improvements for your spec. Triggers on "suggest improvements", "improve my spec", "speakeasy suggest", "better operation names", "suggest error types", "AI suggestions"
 ---
 
 # get-ai-suggestions
 
-Use `speakeasy suggest` for AI-powered improvements.
+Use `speakeasy suggest` for AI-powered spec improvements.
+
+## Inputs
+
+| Input | Required | Description |
+|-------|----------|-------------|
+| OpenAPI spec | Yes | Spec to analyze (`-s`) |
+| SPEAKEASY_API_KEY | Yes | Environment variable |
+
+## Outputs
+
+| Output | Description |
+|--------|-------------|
+| Suggestions | Printed to console or overlay file (`-o`) |
+| Overlay file | Optional: saves suggestions as overlay |
 
 ## Prerequisites
 
@@ -57,3 +71,10 @@ sources:
 # Regenerate
 speakeasy run
 ```
+
+## Related Skills
+
+- `improve-operation-ids` - Detailed guidance on SDK method naming
+- `create-openapi-overlay` - Create custom overlays beyond suggestions
+- `fix-validation-errors-with-overlays` - Use suggestions to fix lint errors
+- `regenerate-sdk` - Apply suggestions and regenerate

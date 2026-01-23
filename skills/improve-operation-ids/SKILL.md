@@ -1,9 +1,25 @@
 ---
 name: improve-operation-ids
-description: Use when SDK methods have auto-generated names like GetApiV1Users, or wanting `sdk.users.list()` style naming
+description: Use when SDK methods have ugly auto-generated names. Triggers on "ugly method names", "GetApiV1Users", "improve operation IDs", "sdk.users.list() style", "better SDK naming", "x-speakeasy-group"
 ---
 
 # improve-operation-ids
+
+Improve SDK method naming from auto-generated to intuitive grouped methods.
+
+## Inputs
+
+| Input | Required | Description |
+|-------|----------|-------------|
+| OpenAPI spec | Yes | Spec to improve (`-s`) |
+| SPEAKEASY_API_KEY | Yes | Environment variable |
+
+## Outputs
+
+| Output | Description |
+|--------|-------------|
+| Suggestions | Better operation names |
+| Overlay file | Optional: saves as overlay (`-o`) |
 
 ## Prerequisites
 
@@ -59,3 +75,9 @@ actions:
 ```
 
 This produces: `sdk.users.listAll()`
+
+## Related Skills
+
+- `get-ai-suggestions` - Auto-generate naming suggestions
+- `create-openapi-overlay` - Create custom naming overlays
+- `regenerate-sdk` - Regenerate with improved names

@@ -1,16 +1,44 @@
 ---
 name: create-openapi-overlay
-description: Use when you need to customize SDK generation without editing the source spec, or can't modify the original OpenAPI file
+description: Use when customizing SDK generation without editing the source spec. Triggers on "create overlay", "overlay file", "customize SDK", "can't modify spec", "x-speakeasy extensions", "SDK customization"
 ---
 
 # create-openapi-overlay
 
 Overlays let you customize an OpenAPI spec for SDK generation without modifying the source.
 
-## Create Overlay Template
+## Inputs
+
+| Input | Required | Description |
+|-------|----------|-------------|
+| Target spec | Yes | Spec to customize |
+| Customizations | Yes | Changes to apply (groups, names, etc.) |
+
+## Outputs
+
+| Output | Description |
+|--------|-------------|
+| Overlay file | YAML file with JSONPath-targeted changes |
+
+## Create Overlay Manually
+
+Create an overlay file with this template structure:
+
+```yaml
+overlay: 1.0.0
+info:
+  title: My Overlay
+  version: 1.0.0
+actions:
+  - target: "$.paths['/example'].get"
+    update:
+      x-speakeasy-group: example
+```
+
+Or generate an overlay by comparing two specs:
 
 ```bash
-speakeasy overlay create -s <spec-path> -o <output-path>
+speakeasy overlay compare -b <before-spec> -a <after-spec> -o <output-overlay>
 ```
 
 ## When to Use Overlays
@@ -66,3 +94,10 @@ This produces: `sdk.users.list()`, `sdk.users.create()`, `sdk.users.get()`, `sdk
 | `$.paths['/users/{id}'].*` | All operations on /users/{id} |
 | `$.components.schemas.User` | User schema |
 | `$.info` | API info object |
+
+## Related Skills
+
+- `apply-openapi-overlay` - Apply overlay to spec
+- `fix-validation-errors-with-overlays` - Fix lint errors via overlay
+- `improve-operation-ids` - Improve SDK method naming
+- `get-ai-suggestions` - Generate overlay suggestions automatically

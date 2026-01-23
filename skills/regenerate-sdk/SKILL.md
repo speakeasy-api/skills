@@ -1,11 +1,26 @@
 ---
 name: regenerate-sdk
-description: Use when your spec changed and you need to regenerate the SDK, or running `speakeasy run`
+description: Use when spec changed and SDK needs regenerating. Triggers on "regenerate SDK", "run speakeasy", "speakeasy run", "rebuild SDK", "update SDK", "spec changed"
 ---
 
 # regenerate-sdk
 
 Use `speakeasy run` to execute the workflow and regenerate SDKs.
+
+## Inputs
+
+| Input | Required | Description |
+|-------|----------|-------------|
+| workflow.yaml | Yes | Must exist at `.speakeasy/workflow.yaml` |
+| OpenAPI spec | Yes | As configured in workflow |
+| SPEAKEASY_API_KEY | Yes | Environment variable |
+
+## Outputs
+
+| Output | Description |
+|--------|-------------|
+| Generated SDK | Updated SDK code in output directory |
+| Generation logs | Success/failure details |
 
 ## Prerequisites
 
@@ -68,3 +83,10 @@ If `speakeasy run` fails, check:
 1. Is the OpenAPI spec valid? Run `speakeasy lint openapi -s <spec>`
 2. Does the source path exist? Check `inputs.location` in workflow.yaml
 3. Are there blocking validation errors? See `diagnose-generation-failure` skill
+
+## Related Skills
+
+- `start-new-sdk-project` - Initial setup if no workflow.yaml exists
+- `validate-openapi-spec` - Check spec before regenerating
+- `diagnose-generation-failure` - When generation fails
+- `check-workspace-status` - See configured targets and sources

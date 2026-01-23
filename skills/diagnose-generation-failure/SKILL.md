@@ -1,11 +1,26 @@
 ---
 name: diagnose-generation-failure
-description: Use when SDK generation failed, seeing "Step Failed: Workflow", or `speakeasy run` errors
+description: Use when SDK generation failed or seeing errors. Triggers on "generation failed", "speakeasy run failed", "SDK build error", "workflow failed", "Step Failed", "why did generation fail"
 ---
 
 # diagnose-generation-failure
 
-When SDK generation fails, determine the root cause and fix strategy.
+When SDK generation fails, diagnose the root cause and determine the fix strategy.
+
+## Inputs
+
+| Input | Required | Description |
+|-------|----------|-------------|
+| OpenAPI spec | Yes | Path to spec that failed generation |
+| Error output | Helpful | Error messages from failed run |
+
+## Outputs
+
+| Output | Description |
+|--------|-------------|
+| Diagnosis | Root cause of failure |
+| Fix strategy | Overlay vs spec fix vs user decision |
+| Action items | Specific steps to resolve |
 
 ## Diagnosis Steps
 
@@ -52,3 +67,10 @@ For complex issues, produce a document:
 ### Recommended Approach
 [Your recommendation]
 ```
+
+## Related Skills
+
+- `validate-openapi-spec` - Run lint to identify specific errors
+- `fix-validation-errors-with-overlays` - Fix issues without modifying source
+- `get-ai-suggestions` - Get suggestions for operation IDs and error types
+- `regenerate-sdk` - Retry generation after fixing issues

@@ -1,11 +1,27 @@
 ---
 name: start-new-sdk-project
-description: Use when you have an OpenAPI spec and want to generate an SDK, or asking "how do I get started with Speakeasy"
+description: Use when starting a new SDK project or first-time Speakeasy setup. Triggers on "create SDK", "generate SDK", "new SDK", "quickstart", "get started with Speakeasy", "initialize SDK project"
 ---
 
 # start-new-sdk-project
 
-Use `speakeasy quickstart` to initialize a new project with a workflow configuration.
+Use `speakeasy quickstart` to initialize a new SDK project with workflow configuration and generate the SDK.
+
+## Inputs
+
+| Input | Required | Description |
+|-------|----------|-------------|
+| OpenAPI spec | Yes | Local file, URL, or registry reference |
+| Target language | Yes | typescript, python, go, java, csharp, php, ruby, kotlin, terraform |
+| SDK name | Yes (non-interactive) | PascalCase name (e.g., `AcmeSDK`) |
+| Package name | Yes (non-interactive) | Package identifier (e.g., `acme-sdk`) |
+
+## Outputs
+
+| Output | Location |
+|--------|----------|
+| Workflow config | `.speakeasy/workflow.yaml` |
+| Generated SDK | Output directory (default: current dir) |
 
 ## Prerequisites
 
@@ -84,3 +100,10 @@ speakeasy quickstart --skip-interactive \
 1. Review the generated SDK in the output directory
 2. Add more targets to `.speakeasy/workflow.yaml` for multi-language support
 3. Run `speakeasy run` to regenerate after spec or config changes
+
+## Related Skills
+
+- `configure-authentication` - Set up API key before running quickstart
+- `validate-openapi-spec` - Check spec for issues before generating
+- `regenerate-sdk` - Regenerate after spec changes
+- `improve-operation-ids` - Improve SDK method names

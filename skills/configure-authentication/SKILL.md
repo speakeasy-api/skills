@@ -1,9 +1,23 @@
 ---
 name: configure-authentication
-description: Use when setting up Speakeasy authentication, configuring API keys, or troubleshooting auth errors in non-interactive/CI environments
+description: Use when setting up Speakeasy auth or troubleshooting auth errors. Triggers on "set up API key", "configure auth", "SPEAKEASY_API_KEY", "unauthorized error", "authentication failed", "how to authenticate"
 ---
 
 # configure-authentication
+
+Set up authentication for Speakeasy CLI commands.
+
+## Inputs
+
+| Input | Required | Description |
+|-------|----------|-------------|
+| API key | Yes | From Speakeasy Dashboard |
+
+## Outputs
+
+| Output | Description |
+|--------|-------------|
+| Authenticated CLI | Commands can access Speakeasy services |
 
 ## Quick Setup
 
@@ -41,3 +55,9 @@ speakeasy_workspace_id: "<workspace-id>"  # optional
 workspace_api_keys:
   org@workspace: "<api-key>"
 ```
+
+## Related Skills
+
+- `start-new-sdk-project` - Requires auth for quickstart
+- `check-workspace-status` - Verify auth is working
+- `regenerate-sdk` - Requires auth for generation

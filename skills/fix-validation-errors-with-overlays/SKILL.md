@@ -1,9 +1,24 @@
 ---
 name: fix-validation-errors-with-overlays
-description: Use when you have lint errors but can't modify the source spec, or need to add missing descriptions/tags via overlay
+description: Use when you have lint errors but can't modify the source spec. Triggers on "fix with overlay", "can't edit spec", "add missing descriptions", "fix validation errors", "overlay fix"
 ---
 
 # fix-validation-errors-with-overlays
+
+Fix OpenAPI validation errors using overlays when you can't modify the source spec.
+
+## Inputs
+
+| Input | Required | Description |
+|-------|----------|-------------|
+| OpenAPI spec | Yes | Spec with validation errors |
+| Lint output | Helpful | Errors to fix |
+
+## Outputs
+
+| Output | Description |
+|--------|-------------|
+| Overlay file | Fixes for validation issues |
 
 ## Overlay-Appropriate Fixes
 
@@ -36,3 +51,10 @@ speakeasy suggest operation-ids -s openapi.yaml -o fixes.yaml
 # 3. Regenerate
 speakeasy run
 ```
+
+## Related Skills
+
+- `validate-openapi-spec` - Identify errors to fix
+- `create-openapi-overlay` - Create custom overlay fixes
+- `get-ai-suggestions` - Auto-generate fix suggestions
+- `diagnose-generation-failure` - Determine if overlay can fix issue
