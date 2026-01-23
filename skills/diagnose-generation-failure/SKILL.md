@@ -26,7 +26,7 @@ When SDK generation fails, diagnose the root cause and determine the fix strateg
 
 1. **Run lint to get detailed errors:**
    ```bash
-   speakeasy lint openapi -s <spec-path>
+   speakeasy lint openapi --non-interactive -s <spec-path>
    ```
 
 2. **Categorize issues:**

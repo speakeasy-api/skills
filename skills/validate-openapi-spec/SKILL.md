@@ -24,7 +24,7 @@ Use `speakeasy lint` to check for errors and warnings in your OpenAPI spec.
 ## Command
 
 ```bash
-speakeasy lint openapi -s <path-to-spec>
+speakeasy lint openapi --non-interactive -s <path-to-spec>
 ```
 
 ## Output Categories
@@ -48,7 +48,7 @@ speakeasy lint openapi -s <path-to-spec>
 
 For commands with large outputs, pipe to `grep` or `tail` to reduce context:
 ```bash
-speakeasy lint openapi -s ./openapi.yaml 2>&1 | grep -E "(error|warning)"
+speakeasy lint openapi --non-interactive -s ./openapi.yaml 2>&1 | grep -E "(error|warning)"
 ```
 
 ## Related Skills

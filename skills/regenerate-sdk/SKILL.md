@@ -80,7 +80,7 @@ speakeasy run --output console 2>&1 | tail -50
 ## Troubleshooting
 
 If `speakeasy run` fails, check:
-1. Is the OpenAPI spec valid? Run `speakeasy lint openapi -s <spec>`
+1. Is the OpenAPI spec valid? Run `speakeasy lint openapi --non-interactive -s <spec>`
 2. Does the source path exist? Check `inputs.location` in workflow.yaml
 3. Are there blocking validation errors? See `diagnose-generation-failure` skill
 
