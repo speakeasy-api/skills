@@ -11,7 +11,7 @@ Check configured targets, sources, and workspace info.
 
 | Input | Required | Description |
 |-------|----------|-------------|
-| SPEAKEASY_API_KEY | Yes | Environment variable |
+| Authentication | Yes | Via `speakeasy auth login` or `SPEAKEASY_API_KEY` env var |
 
 ## Outputs
 

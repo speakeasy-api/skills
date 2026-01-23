@@ -12,7 +12,7 @@ Use `speakeasy suggest` for AI-powered spec improvements.
 | Input | Required | Description |
 |-------|----------|-------------|
 | OpenAPI spec | Yes | Spec to analyze (`-s`) |
-| SPEAKEASY_API_KEY | Yes | Environment variable |
+| Authentication | Yes | Via `speakeasy auth login` or `SPEAKEASY_API_KEY` env var |
 
 ## Outputs
 

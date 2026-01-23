@@ -13,7 +13,7 @@ Use `speakeasy run` to execute the workflow and regenerate SDKs.
 |-------|----------|-------------|
 | workflow.yaml | Yes | Must exist at `.speakeasy/workflow.yaml` |
 | OpenAPI spec | Yes | As configured in workflow |
-| SPEAKEASY_API_KEY | Yes | Environment variable |
+| Authentication | Yes | Via `speakeasy auth login` or `SPEAKEASY_API_KEY` env var |
 
 ## Outputs
 

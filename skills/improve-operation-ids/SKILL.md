@@ -12,7 +12,7 @@ Improve SDK method naming from auto-generated to intuitive grouped methods.
 | Input | Required | Description |
 |-------|----------|-------------|
 | OpenAPI spec | Yes | Spec to improve (`-s`) |
-| SPEAKEASY_API_KEY | Yes | Environment variable |
+| Authentication | Yes | Via `speakeasy auth login` or `SPEAKEASY_API_KEY` env var |
 
 ## Outputs
 

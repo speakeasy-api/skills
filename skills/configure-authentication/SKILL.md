@@ -1,6 +1,6 @@
 ---
 name: configure-authentication
-description: Use when setting up Speakeasy auth or troubleshooting auth errors. Triggers on "set up API key", "configure auth", "SPEAKEASY_API_KEY", "unauthorized error", "authentication failed", "how to authenticate"
+description: Use when setting up Speakeasy auth or troubleshooting auth errors. Triggers on "set up API key", "configure auth", "speakeasy auth login", "unauthorized error", "authentication failed", "how to authenticate"
 ---
 
 # configure-authentication
@@ -11,7 +11,7 @@ Set up authentication for Speakeasy CLI commands.
 
 | Input | Required | Description |
 |-------|----------|-------------|
-| API key | Yes | From Speakeasy Dashboard |
+| API key | Yes | From Speakeasy Dashboard or browser login |
 
 ## Outputs
 
@@ -19,9 +19,17 @@ Set up authentication for Speakeasy CLI commands.
 |--------|-------------|
 | Authenticated CLI | Commands can access Speakeasy services |
 
-## Quick Setup
+## Interactive Login (Recommended)
 
-Set `SPEAKEASY_API_KEY` environment variable (takes precedence over config files):
+```bash
+speakeasy auth login
+```
+
+Opens browser for authentication. Credentials stored at `~/.speakeasy/config.yaml`.
+
+## Non-Interactive (CI/AI Agents)
+
+Set `SPEAKEASY_API_KEY` environment variable:
 
 ```bash
 export SPEAKEASY_API_KEY="<your-api-key>"
@@ -29,10 +37,12 @@ export SPEAKEASY_API_KEY="<your-api-key>"
 
 Get your API key: [Speakeasy Dashboard](https://app.speakeasy.com) → Settings → API Keys
 
+Note: Environment variable takes precedence over config file.
+
 ## Verifying Authentication
 
 ```bash
-speakeasy status --output json
+speakeasy status
 ```
 
 Returns workspace info if authenticated; `unauthorized` error if not.
@@ -41,12 +51,12 @@ Returns workspace info if authenticated; `unauthorized` error if not.
 
 | Error | Solution |
 |-------|----------|
-| `unauthorized` | Set valid `SPEAKEASY_API_KEY` env var |
+| `unauthorized` | Run `speakeasy auth login` or set `SPEAKEASY_API_KEY` |
 | `workspace not found` | Check workspace ID in `~/.speakeasy/config.yaml` |
 
-## Alternative: Config File
+## Config File Location
 
-Create `~/.speakeasy/config.yaml`:
+Credentials stored at `~/.speakeasy/config.yaml`:
 
 ```yaml
 speakeasy_api_key: "<your-api-key>"
