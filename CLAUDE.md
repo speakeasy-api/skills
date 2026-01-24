@@ -18,7 +18,7 @@ cp -r skills/{skill-name} ~/.claude/skills/
 ## Repository Structure
 
 ```
-speakeasy-api/agent-skills/
+speakeasy-api/skills/
 ├── .claude-plugin/          # Claude Code plugin configuration
 │   ├── plugin.json          # Plugin manifest (namespace: "speakeasy")
 │   └── marketplace.json     # Marketplace metadata
