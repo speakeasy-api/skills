@@ -5,7 +5,7 @@ This file provides guidance for AI coding agents working on the Speakeasy Agent 
 ## Repository Structure
 
 ```
-speakeasy-api/agent-skills/
+speakeasy-api/skills/
 ├── .claude-plugin/          # Claude Code plugin configuration
 │   ├── plugin.json          # Plugin manifest (namespace: "speakeasy")
 │   └── marketplace.json     # Marketplace metadata

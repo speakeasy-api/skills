@@ -25,7 +25,7 @@ A collection of [Agent Skills](https://agentskills.io/) for SDK generation and O
 ## Installation
 
 ```bash
-npx skills add speakeasy-api/agent-skills
+npx skills add speakeasy-api/skills
 ```
 
 ## Available Skills
@@ -61,7 +61,7 @@ npx skills add speakeasy-api/agent-skills
 ## Directory Structure
 
 ```
-speakeasy-api/agent-skills/
+speakeasy-api/skills/
 ├── .claude-plugin/
 │   ├── plugin.json
 │   └── marketplace.json
