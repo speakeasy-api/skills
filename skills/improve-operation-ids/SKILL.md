@@ -1,9 +1,32 @@
 ---
 name: improve-operation-ids
-description: Use when SDK methods have auto-generated names like GetApiV1Users, or wanting `sdk.users.list()` style naming
+description: Use when SDK methods have ugly auto-generated names. Triggers on "ugly method names", "GetApiV1Users", "improve operation IDs", "sdk.users.list() style", "better SDK naming", "x-speakeasy-group"
+license: Apache-2.0
 ---
 
 # improve-operation-ids
+
+Improve SDK method naming from auto-generated to intuitive grouped methods.
+
+## When to Use
+
+- SDK methods have ugly auto-generated names like `GetApiV1Users`
+- You want grouped methods like `sdk.users.list()`
+- User says: "ugly method names", "improve operation IDs", "better SDK naming"
+
+## Inputs
+
+| Input | Required | Description |
+|-------|----------|-------------|
+| OpenAPI spec | Yes | Spec to improve (`-s`) |
+| Authentication | Yes | Via `speakeasy auth login` or `SPEAKEASY_API_KEY` env var |
+
+## Outputs
+
+| Output | Description |
+|--------|-------------|
+| Suggestions | Better operation names |
+| Overlay file | Optional: saves as overlay (`-o`) |
 
 ## Prerequisites
 
@@ -41,7 +64,7 @@ Use `x-speakeasy-group: users` and `x-speakeasy-name-override: list` to achieve 
 speakeasy suggest operation-ids -s openapi.yaml -o operation-ids.yaml
 
 # Add to workflow and regenerate
-speakeasy run
+speakeasy run --output console
 ```
 
 ## Manual Override
@@ -59,3 +82,23 @@ actions:
 ```
 
 This produces: `sdk.users.listAll()`
+
+## What NOT to Do
+
+- **Do NOT** modify operationIds directly in the source spec if externally managed
+- **Do NOT** use generic names like `get`, `post` without context
+- **Do NOT** forget to add the overlay to `workflow.yaml` after generating
+
+## Troubleshooting
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Names unchanged | Missing overlay in workflow | Add overlay to `workflow.yaml` sources |
+| "unauthorized" | Missing API key | Set `SPEAKEASY_API_KEY` env var |
+| Duplicate names | Similar endpoints | Use unique `x-speakeasy-name-override` values |
+
+## Related Skills
+
+- `get-ai-suggestions` - Auto-generate naming suggestions
+- `create-openapi-overlay` - Create custom naming overlays
+- `regenerate-sdk` - Regenerate with improved names

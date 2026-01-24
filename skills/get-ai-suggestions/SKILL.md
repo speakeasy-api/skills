@@ -1,11 +1,32 @@
 ---
 name: get-ai-suggestions
-description: Use when SDK method names are ugly, wanting to improve operation IDs, or asking "how can I improve my spec"
+description: Use when wanting AI-powered improvements for your spec. Triggers on "suggest improvements", "improve my spec", "speakeasy suggest", "better operation names", "suggest error types", "AI suggestions"
+license: Apache-2.0
 ---
 
 # get-ai-suggestions
 
-Use `speakeasy suggest` for AI-powered improvements.
+Use `speakeasy suggest` for AI-powered spec improvements.
+
+## When to Use
+
+- Want AI-generated suggestions for operation IDs or error types
+- Looking to improve spec quality automatically
+- User says: "suggest improvements", "AI suggestions", "better operation names"
+
+## Inputs
+
+| Input | Required | Description |
+|-------|----------|-------------|
+| OpenAPI spec | Yes | Spec to analyze (`-s`) |
+| Authentication | Yes | Via `speakeasy auth login` or `SPEAKEASY_API_KEY` env var |
+
+## Outputs
+
+| Output | Description |
+|--------|-------------|
+| Suggestions | Printed to console or overlay file (`-o`) |
+| Overlay file | Optional: saves suggestions as overlay |
 
 ## Prerequisites
 
@@ -55,5 +76,20 @@ sources:
       - location: ./operation-ids-overlay.yaml
 
 # Regenerate
-speakeasy run
+speakeasy run --output console
 ```
+
+## Troubleshooting
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "unauthorized" | Missing API key | Set `SPEAKEASY_API_KEY` env var |
+| No suggestions | Spec already well-named | No action needed |
+| Timeout | Large spec | Try smaller sections or wait longer |
+
+## Related Skills
+
+- `improve-operation-ids` - Detailed guidance on SDK method naming
+- `create-openapi-overlay` - Create custom overlays beyond suggestions
+- `fix-validation-errors-with-overlays` - Use suggestions to fix lint errors
+- `regenerate-sdk` - Apply suggestions and regenerate
