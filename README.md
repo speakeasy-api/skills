@@ -1,6 +1,6 @@
 <div align="center">
  <a href="https://www.speakeasy.com/" target="_blank">
-  <img width="1500" height="500" alt="Speakeasy Agent Skills" src="https://github.com/user-attachments/assets/b6a43bbf-c85e-4903-bdfc-170bb73d8f19" />
+  <img width="1500" height="500" alt="Speakeasy Agent Skills" src="https://github.com/user-attachments/assets/7afc209b-3e03-46ea-a29c-50221f7aca4d" />
  </a>
  <br />
  <br />
