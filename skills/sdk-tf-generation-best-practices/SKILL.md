@@ -205,15 +205,15 @@ PROBLEM
 ### Workflow A: First-Time SDK Generation
 
 1. Read `content/plans/sdk-generation.md`
-2. Run `speakeasy quickstart`
-3. Follow interactive prompts
-4. SDK generated in `./sdk-[language]/`
+2. Run `speakeasy quickstart --skip-interactive --output console -s <spec> -t <target> -n <name> -p <package>`
+   - `<spec>` can be: local file (`./openapi.yaml`), URL (`https://...`), or registry source (`my-api@latest`)
+3. SDK generated in the output directory
 
 ### Workflow B: Existing Codebase → SDK
 
 1. Identify framework in `content/code-first/`
 2. Extract OpenAPI spec
-3. Validate with `speakeasy validate openapi`
+3. Validate with `speakeasy lint openapi --non-interactive -s <spec>`
 4. Fix issues using `content/spec-first/` guides
 5. Generate SDK via `content/plans/sdk-generation.md`
 
@@ -222,7 +222,7 @@ PROBLEM
 1. Ensure `gen.yaml` exists (from quickstart)
 2. Read `content/sdk-customization/` guides
 3. Modify `gen.yaml`
-4. Regenerate with `speakeasy run`
+4. Regenerate with `speakeasy run --output console`
 
 ### Workflow D: Multi-Target SDK (Azure, GCP, etc.)
 
@@ -240,12 +240,18 @@ PROBLEM
 
 ## Essential CLI Commands
 
+For non-interactive environments (CI/CD, AI agents), always use `--skip-interactive` and/or `--output console` flags.
+
 | Command | Purpose |
 |---------|---------|
-| `speakeasy quickstart` | Interactive SDK setup |
-| `speakeasy run` | Regenerate SDK from gen.yaml |
-| `speakeasy validate openapi -s spec.yaml` | Validate OpenAPI spec |
-| `speakeasy auth login` | Authenticate with Speakeasy |
+| `speakeasy quickstart --skip-interactive --output console -s <spec> -t <target> -n <name> -p <package>` | Non-interactive SDK setup |
+| `speakeasy run --output console` | Regenerate SDK from workflow.yaml |
+| `speakeasy lint openapi --non-interactive -s <spec>` | Validate OpenAPI spec |
+| `speakeasy status --output json` | Check workspace status (JSON for automation) |
+| `speakeasy pull --list --format json` | List available registry sources |
+| `speakeasy auth login` | Authenticate with Speakeasy (interactive) |
+
+**Schema sources:** The `-s <spec>` flag accepts local files (`./openapi.yaml`), URLs (`https://...`), or registry sources (`my-api@latest`, `org/workspace/source@tag`).
 
 ## Getting Help
 
