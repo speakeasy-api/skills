@@ -44,6 +44,7 @@ npx skills add speakeasy-api/skills
 | `speakeasy:fix-validation-errors-with-overlays` | Have lint errors but can't modify source spec |
 | `speakeasy:improve-operation-ids` | SDK methods have names like `GetApiV1Users` |
 | `speakeasy:configure-authentication` | Setting up Speakeasy auth in CI/CD or non-interactive environments |
+| `speakeasy:sdk-tf-generation-best-practices` | Need best practices for SDK/Terraform generation, customization, testing, or OpenAPI management |
 
 ## Key Principles
 
@@ -70,7 +71,7 @@ speakeasy-api/skills/
 │   │   └── SKILL.md
 │   ├── regenerate-sdk/
 │   │   └── SKILL.md
-│   └── ... (12 skills total)
+│   └── ... (13 skills total)
 ├── templates/
 │   └── SKILL.template.md
 ├── AGENTS.md              # Contributor guidance for AI agents

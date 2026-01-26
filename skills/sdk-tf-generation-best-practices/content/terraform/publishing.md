@@ -1,0 +1,205 @@
+---
+short_description: Publish Terraform providers to the HashiCorp Registry
+long_description: |
+  Step-by-step guide for publishing Terraform providers to the HashiCorp Registry,
+  including repository setup, GPG signing, GitHub Actions configuration, and GoReleaser setup.
+source:
+  repo: "speakeasy-api/speakeasy.com"
+  path: "src/content/docs/terraform/publish-terraform.mdx"
+  ref: "af7c36a9ec957336fb799151a4e5af3ae293831e"
+  last_reconciled: "2025-12-11"
+---
+
+# Terraform Registry
+
+The Speakeasy Generation GitHub Action can be configured to publish a generated Terraform provider. However, Terraform providers cannot be generated with Speakeasy while operating in monorepo mode. HashiCorp requires a separate repository for the Terraform provider code that follows their naming convention and must be public. For more information, refer to the [HashiCorp Terraform Registry documentation](https://developer.hashicorp.com/terraform/registry/providers/publishing#preparing-your-provider).
+
+Use the following steps to publish a generated Terraform provider to the HashiCorp Terraform Registry.
+
+## Step 1: Create a Repository
+
+Create a repository for the Terraform provider:
+
+- Name the repository `terraform-provider-{NAME}`, with the `NAME` containing lowercase letters.
+- Ensure it is a public repository.
+
+## Step 2: Generate GPG Signing Key
+
+Sign your Terraform provider releases with a signing key. Create and export a GNU Privacy Guard (GPG) signing key following the instructions in the GitHub guide to [Generating a new GPG key](https://docs.github.com/en/authentication/managing-commit-signature-verification/generating-a-new-gpg-key). Generate your GPG key using either the Digital Signature Algorithm (DSA) or the Rivest-Shamir-Adleman (RSA) algorithm.
+
+## Step 3: Store GPG Key Details
+
+Take note of the following values:
+
+- The GPG private key.
+- The GPG passphrase.
+- The GPG public key.
+
+## Step 4: Add Public Key to Repository
+
+Add the ASCII-armored public key to the Terraform repository.
+
+## Step 5: Configure Repository Secrets
+
+Your GPG private key and GPG passphrase will be configured automatically when entered into the Speakeasy CLI. Ensure the following secrets are available to your repository:
+
+- The GPG private key, `terraform_gpg_secret_key`.
+- The GPG passphrase, `terraform_gpg_passphrase`.
+
+## Step 6: Register with Terraform Registry
+
+The first time you create and publish a Terraform provider using the Speakeasy Generation GitHub Action, you need to manually add it to the Terraform Registry. Subsequent updates will be published automatically. To begin this process, follow the [Terraform Registry instructions](https://developer.hashicorp.com/terraform/registry/providers/publishing) and agree to the Terraform terms and conditions. Note that you will need to be an organizational admin to complete this step.
+
+## Step 7: Add GitHub Actions Workflow
+
+Add the following file to the `.github/workflows` directory to create releases for the Terraform provider using GoReleaser. If all the above steps are complete, the HashiCorp registry automatically picks up new changes.
+
+```yaml
+# Terraform Provider release workflow.
+name: Release
+
+# This GitHub Action creates a release when a tag that matches the pattern
+# "v*" (e.g. v0.1.0) is created.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+# Releases need permission to read and write the repository contents.
+# GitHub considers creating releases and uploading assets as writing content.
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # Allow GoReleaser to access older tag information.
+          fetch-depth: 0
+      - uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4.0.0
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549 # v5.2.0
+        id: import_gpg
+        with:
+          gpg_private_key: ${{ secrets.terraform_gpg_secret_key }}
+          passphrase: ${{ secrets.terraform_gpg_passphrase }}
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@286f3b13b1b49da4ac219696163fb8c1c93e1200 # v6.0.0
+        with:
+          args: release --clean
+        env:
+          # GitHub sets the GITHUB_TOKEN secret automatically.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+```
+
+## Step 8: Create GoReleaser Configuration
+
+Finally, create a [GoReleaser](https://goreleaser.com/) file in the root of your repository:
+
+```yaml
+# Visit https://goreleaser.com for documentation on how to customize this
+# behavior.
+version: 2
+
+before:
+  hooks:
+    # This is just an example and not a requirement for building or publishing providers.
+    - go mod tidy
+builds:
+  - env:
+      # GoReleaser does not work with CGO and could also complicate
+      # usage by users in CI/CD systems, like Terraform Cloud, where
+      # users are unable to install libraries.
+      - CGO_ENABLED=0
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    flags:
+      - -trimpath
+    ldflags:
+      - '-s -w -X main.version={{.Version}} -X main.commit={{.Commit}}'
+    goos:
+      - freebsd
+      - windows
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - '386'
+      - arm
+      - arm64
+    ignore:
+      - goos: darwin
+        goarch: '386'
+    binary: '{{ .ProjectName }}_v{{ .Version }}'
+archives:
+  - format: zip
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+checksum:
+  extra_files:
+    - glob: 'terraform-registry-manifest.json'
+      name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
+  name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
+  algorithm: sha256
+signs:
+  - artifacts: checksum
+    args:
+      # If you are using this in a GitHub Action or some other automated pipeline, you
+      # need to pass the batch flag to indicate it's not interactive.
+      - "--batch"
+      - "--local-user"
+      - "{{ .Env.GPG_FINGERPRINT }}" # set this environment variable for your signing key
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
+      - "${artifact}"
+release:
+  extra_files:
+    - glob: 'terraform-registry-manifest.json'
+      name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
+  # If you want to manually examine the release before it goes live, uncomment this line:
+  # draft: true
+changelog:
+  disable: true
+```
+
+## Automatic Publishing
+
+Whenever you generate and merge a new PR for your Terraform provider, it will be automatically versioned and released to the HashiCorp Registry.
+
+---
+
+## Pre-defined TODO List
+
+When publishing a Terraform provider, initialize your TODO list with:
+
+| Step | TODO Item | Active Form |
+|------|-----------|-------------|
+| 1 | Create public GitHub repository with terraform-provider-{name} naming | Creating public repository |
+| 2 | Generate GPG signing key | Generating GPG signing key |
+| 3 | Export GPG private key and passphrase | Exporting GPG credentials |
+| 4 | Add GPG public key to repository | Adding GPG public key |
+| 5 | Configure repository secrets for GPG | Configuring repository secrets |
+| 6 | Add GitHub Actions release workflow | Adding release workflow |
+| 7 | Create GoReleaser configuration file | Creating GoReleaser config |
+| 8 | Register provider with Terraform Registry | Registering with registry |
+
+**Usage:**
+```
+TodoWrite([
+  {content: "Create public GitHub repository with terraform-provider-{name} naming", status: "pending", activeForm: "Creating public repository"},
+  {content: "Generate GPG signing key", status: "pending", activeForm: "Generating GPG signing key"},
+  {content: "Export GPG private key and passphrase", status: "pending", activeForm: "Exporting GPG credentials"},
+  {content: "Add GPG public key to repository", status: "pending", activeForm: "Adding GPG public key"},
+  {content: "Configure repository secrets for GPG", status: "pending", activeForm: "Configuring repository secrets"},
+  {content: "Add GitHub Actions release workflow", status: "pending", activeForm: "Adding release workflow"},
+  {content: "Create GoReleaser configuration file", status: "pending", activeForm: "Creating GoReleaser config"},
+  {content: "Register provider with Terraform Registry", status: "pending", activeForm: "Registering with registry"}
+])
+```
+
