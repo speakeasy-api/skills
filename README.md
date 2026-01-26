@@ -32,6 +32,7 @@ npx skills add speakeasy-api/skills
 
 | Skill | Use When... |
 |-------|-------------|
+| `speakeasy:sdk-tf-generation-best-practices` | **Progressive Disclosure** — Comprehensive guide to all Speakeasy SDK and Terraform generation capability and best practices. Routes to detailed guides for generation workflows, language-specific patterns, customization, testing, and OpenAPI spec management |
 | `speakeasy:start-new-sdk-project` | You have an OpenAPI spec and want to generate an SDK |
 | `speakeasy:regenerate-sdk` | Your spec changed and you need to regenerate |
 | `speakeasy:validate-openapi-spec` | Checking if spec is valid, running `speakeasy lint` |
@@ -70,7 +71,7 @@ speakeasy-api/skills/
 │   │   └── SKILL.md
 │   ├── regenerate-sdk/
 │   │   └── SKILL.md
-│   └── ... (12 skills total)
+│   └── ... (13 skills total)
 ├── templates/
 │   └── SKILL.template.md
 ├── AGENTS.md              # Contributor guidance for AI agents
