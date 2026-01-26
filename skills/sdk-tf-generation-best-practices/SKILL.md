@@ -1,11 +1,12 @@
 ---
 name: sdk-tf-generation-best-practices
 description: >-
-  Use when generating SDKs or Terraform providers with Speakeasy, or when
-  needing best practices for SDK/Terraform generation, customization, testing,
-  or OpenAPI spec management. Triggers on "generate SDK", "create terraform
-  provider", "SDK best practices", "speakeasy generation", "SDK customization",
-  "fix generation", "SDK hooks", "SDK testing", or "openapi overlay".
+  Use when generating SDKs, Terraform providers, or MCP servers with Speakeasy,
+  or when needing best practices for SDK/Terraform generation, customization,
+  testing, or OpenAPI spec management. Triggers on "generate SDK", "create
+  terraform provider", "generate MCP server", "SDK best practices", "speakeasy
+  generation", "SDK customization", "fix generation", "SDK hooks", "SDK testing",
+  or "openapi overlay".
 license: Apache-2.0
 ---
 
@@ -17,12 +18,13 @@ Comprehensive best-practices reference for generating SDKs and Terraform provide
 
 - Generating an SDK from an OpenAPI spec
 - Generating a Terraform provider from an OpenAPI spec
+- Generating an MCP server from an OpenAPI spec
 - Extracting an OpenAPI spec from existing code (FastAPI, Flask, Django, Spring Boot, NestJS, Hono, Rails, Laravel)
 - Customizing SDK generation (hooks, auth, error handling, retries, pagination)
 - Fixing OpenAPI validation errors or applying overlays
 - Testing generated SDKs (integration, contract, Arazzo)
 - Understanding language-specific SDK patterns (TypeScript, Python, Go, Java, C#, Ruby, PHP)
-- User says: "generate SDK", "SDK best practices", "terraform provider", "SDK customization", "SDK testing"
+- User says: "generate SDK", "SDK best practices", "terraform provider", "generate MCP server", "SDK customization", "SDK testing"
 
 ## How to Use
 
