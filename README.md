@@ -32,6 +32,7 @@ npx skills add speakeasy-api/skills
 
 | Skill | Use When... |
 |-------|-------------|
+| `speakeasy:sdk-tf-generation-best-practices` | **Progressive Disclosure** — Comprehensive guide to all Speakeasy SDK and Terraform generation capability and best practices. Routes to detailed guides for generation workflows, language-specific patterns, customization, testing, and OpenAPI spec management |
 | `speakeasy:start-new-sdk-project` | You have an OpenAPI spec and want to generate an SDK |
 | `speakeasy:regenerate-sdk` | Your spec changed and you need to regenerate |
 | `speakeasy:validate-openapi-spec` | Checking if spec is valid, running `speakeasy lint` |
@@ -44,7 +45,6 @@ npx skills add speakeasy-api/skills
 | `speakeasy:fix-validation-errors-with-overlays` | Have lint errors but can't modify source spec |
 | `speakeasy:improve-operation-ids` | SDK methods have names like `GetApiV1Users` |
 | `speakeasy:configure-authentication` | Setting up Speakeasy auth in CI/CD or non-interactive environments |
-| `speakeasy:sdk-tf-generation-best-practices` | Need best practices for SDK/Terraform generation, customization, testing, or OpenAPI management |
 
 ## Key Principles
 
