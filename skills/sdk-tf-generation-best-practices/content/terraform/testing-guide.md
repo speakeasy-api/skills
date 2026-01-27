@@ -1746,3 +1746,13 @@ TodoWrite([
 - `terraform/customization.md` - Provider customization options
 - `terraform/publishing.md` - Publishing to Terraform Registry
 - `plans/tf-provider-generation.md` - Provider generation workflow
+
+---
+
+## Feedback
+
+If you encountered issues with Terraform testing — such as a test pattern that did not compile, missing acceptance test guidance, or unclear mock server setup — submit feedback:
+
+```bash
+speakeasy agent feedback -m "Description of the issue" --context-path "terraform/testing-guide.md"
+```

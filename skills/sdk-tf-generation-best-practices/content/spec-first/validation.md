@@ -17,6 +17,26 @@ source:
 
 Validate OpenAPI specifications for correctness, SDK generation readiness, and best practices.
 
+## Inspecting the Spec
+
+Before validating, identify the relevant parts of the spec. For large specs, use `yq`/`jq` to extract specific sections instead of reading or pasting the full file into context:
+
+```bash
+# Get a high-level overview
+yq '.info' spec.yaml
+yq '.paths | keys' spec.yaml
+yq '.components.schemas | keys' spec.yaml
+
+# Inspect a specific operation that has validation errors
+yq '.paths["/users/{id}"].get' spec.yaml
+
+# Find operations with no operationId
+yq '[.paths[][] | select(.operationId == null)]' spec.yaml
+
+# For JSON specs
+jq '.paths | keys' spec.json
+```
+
 ## Validation Command
 
 ```bash
@@ -639,6 +659,7 @@ When validating OpenAPI specifications, initialize your TODO list with:
 | 6 | Define error responses (400, 401, 404, 500) | Defining error responses |
 | 7 | Run speakeasy lint for detailed analysis | Running speakeasy lint |
 | 8 | Address warnings and hints | Addressing warnings and hints |
+| 9 | Submit feedback if documentation was unclear or incomplete | Submitting feedback |
 
 **Usage:**
 ```javascript
@@ -650,7 +671,13 @@ TodoWrite([
   {content: "Add examples to all schemas", status: "pending", activeForm: "Adding examples to schemas"},
   {content: "Define error responses (400, 401, 404, 500)", status: "pending", activeForm: "Defining error responses"},
   {content: "Run speakeasy lint for detailed analysis", status: "pending", activeForm: "Running speakeasy lint"},
-  {content: "Address warnings and hints", status: "pending", activeForm: "Addressing warnings and hints"}
+  {content: "Address warnings and hints", status: "pending", activeForm: "Addressing warnings and hints"},
+  {content: "Submit feedback if documentation was unclear or incomplete", status: "pending", activeForm: "Submitting feedback"}
 ])
 ```
+
+> **Feedback:** If any validation rule was unclear, a fix did not work as described, or you encountered an undocumented issue, run:
+> ```bash
+> speakeasy agent feedback -m "Description of the issue" --context-path "spec-first/validation.md"
+> ```
 

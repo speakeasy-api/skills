@@ -436,6 +436,31 @@ If you need a CLI command that is not listed here:
 
 ---
 
+## Agent Feedback
+
+Submit feedback on agent context documentation:
+
+```bash
+# Submit feedback about documentation quality or gaps
+speakeasy agent feedback -m "Your feedback message"
+
+# Submit feedback about a specific document
+speakeasy agent feedback -m "Your feedback message" --context-path "spec-first/validation.md"
+
+# Submit general feedback about the Speakeasy CLI
+speakeasy agent feedback -m "Your feedback message" -t general
+```
+
+**Flags:**
+
+| Flag | Short | Description | Required |
+|------|-------|-------------|----------|
+| `--message` | `-m` | The feedback message | Yes |
+| `--type` | `-t` | Feedback type: `agent_context` (default) or `general` | No |
+| `--context-path` | | The agent-context path this feedback relates to | No |
+
+---
+
 ## Quick Reference Table
 
 | Task | Command |

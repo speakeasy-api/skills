@@ -52,6 +52,15 @@ This filesystem provides context and plans for AI agents to autonomously generat
 | Run AI-powered contract tests | `sdk-testing/contract-testing.md` |
 | Fix ResponseValidationError at runtime | `sdk-testing/contract-testing.md` |
 | Validate spec matches live API | `spec-first/validation.md#dynamic-validation-contract-testing` |
+| Upgrade Speakeasy version in workflow.yaml | `plans/sdk-generation.md#version-management` |
+| Bump pinned speakeasyVersion to latest | `plans/sdk-generation.md#version-management` |
+| Regenerate SDK after spec or version change | `plans/sdk-generation.md` |
+| Customize SDK README with documentation | `sdk-customization/readme-customization.md` |
+| Add branding, examples, or guides to SDK README | `sdk-customization/readme-customization.md` |
+| Add examples to OpenAPI spec via overlay | `spec-first/overlays.md#add-examples` |
+| Add API-response-based examples to spec | `spec-first/overlays.md#add-examples` |
+| Test SDK against live API | `sdk-testing/integration-testing.md` |
+| Run contract tests for generated SDK | `sdk-testing/contract-testing.md` |
 
 ## Directory Structure
 
@@ -178,6 +187,40 @@ PROBLEM
                  → spec-first/overlays.md#overlay-recipes
 ```
 
+## Working with Large OpenAPI Documents
+
+OpenAPI specs can be thousands of lines. **Do not load the full spec into context.** Use `yq` (YAML) or `jq` (JSON) to extract only the sections you need.
+
+```bash
+# List all paths
+yq '.paths | keys' spec.yaml
+
+# Inspect a specific endpoint
+yq '.paths["/users/{id}"]' spec.yaml
+
+# List all schema names
+yq '.components.schemas | keys' spec.yaml
+
+# Inspect a specific schema
+yq '.components.schemas.User' spec.yaml
+
+# Check server URLs
+yq '.servers' spec.yaml
+
+# List all operationIds
+yq '[.paths[][].operationId // empty] | unique' spec.yaml
+
+# For JSON specs, use jq
+jq '.paths | keys' spec.json
+jq '.components.schemas.User' spec.json
+```
+
+> **Note:** If `yq`/`jq` aren't available, use targeted `grep` searches instead of copying the full spec into context:
+> ```bash
+> grep -n 'operationId:' spec.yaml
+> grep -n 'x-speakeasy-entity' spec.yaml
+> ```
+
 ## Common Workflows
 
 ### Workflow A: First-Time SDK Generation
@@ -215,6 +258,14 @@ PROBLEM
 3. For predefined extension points → `sdk-languages/typescript.md#custom-code-regions`
 4. For complex logic → `sdk-languages/typescript.md#extra-modules-pattern`
 
+### Workflow F: Upgrade and Regenerate
+
+1. Check current `speakeasyVersion` in `.speakeasy/workflow.yaml`
+2. Update `speakeasyVersion` to `latest` or a specific version → `plans/sdk-generation.md#version-management`
+3. Regenerate with `speakeasy run` → `plans/sdk-generation.md`
+4. Test the regenerated SDK → `sdk-testing/integration-testing.md` or `sdk-testing/contract-testing.md`
+5. Commit changes
+
 ## Essential CLI Commands
 
 | Command | Purpose |
@@ -230,4 +281,22 @@ PROBLEM
 - **Authentication issues:** Run `speakeasy auth login`
 - **Validation errors:** See `spec-first/validation.md`
 - **Unsupported feature:** Check language guide in `sdk-languages/`
-- **CLI errors:** See `cli-reference/` or run `speakeasy --help`
+- **CLI errors:** See `CLI_REFERENCE.md` or run `speakeasy --help`
+
+## Providing Feedback
+
+If you encounter missing documentation, unclear instructions, or incorrect examples in this agent context, submit feedback directly:
+
+```bash
+# General feedback
+speakeasy agent feedback -m "Description of the issue or suggestion"
+
+# Feedback about a specific document
+speakeasy agent feedback -m "Description of the issue" --context-path "path/to/document.md"
+```
+
+Feedback helps improve these documents for all agents. Submit feedback when:
+- A guide is missing steps needed to complete a task
+- An example does not work as documented
+- A CLI command behaves differently than described
+- You cannot find documentation for a supported feature

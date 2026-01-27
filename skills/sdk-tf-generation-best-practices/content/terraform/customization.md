@@ -1227,7 +1227,7 @@ Path-level and operation-level servers are also supported where it is implemente
 
 ### Globals
 
-Use the `x-speakeasy-globals` extension to enable provider-level configuration of common properties across multiple resources. This customization allows Terraform practitioners to configure a value in three ways:
+Use the `x-speakeasy-globals` extension to enable provider-level configuration of common properties across multiple resources. Global parameters are exposed as attributes on the Terraform `provider` block and are automatically applied to any API operation that declares them. This customization allows Terraform practitioners to configure a value in three ways:
 
 - **Provider-level only:** The default value is applied to any resources that use the global.
 - **Resource-level only:** The explicit value is applied only to those resource instance(s).
@@ -1242,6 +1242,102 @@ x-speakeasy-globals:
       in: path
       schema:
         type: string
+```
+
+The generated Terraform provider exposes the global as a configurable attribute:
+
+```hcl
+provider "examplecloud" {
+  organization_id = "org-123"
+}
+```
+
+#### Aligning Entity Fields With Global Parameters Using Name Overrides
+
+For a global parameter to resolve automatically from provider configuration, the corresponding entity schema property name must match the global parameter name exactly. If they differ, add `x-speakeasy-name-override` to the entity property to make the names match.
+
+> **Note:** Use `x-speakeasy-name-override` to align entity property names with global parameter names. Do not use `x-speakeasy-match` for this—`x-speakeasy-match` is for mapping operation parameters (for example, path parameters) to Terraform state properties. If names match via `x-speakeasy-name-override`, any `x-speakeasy-match` on the same parameter is redundant and can be removed.
+
+**Example: Aligning a `workspace_id` global with an entity field**
+
+Given a global parameter:
+
+```yaml
+x-speakeasy-globals:
+  parameters:
+    - name: workspace_id
+      in: path
+      schema:
+        type: string
+```
+
+And an entity schema where the field has a different name:
+
+```yaml
+components:
+  schemas:
+    Workspace:
+      x-speakeasy-entity: Workspace
+      type: object
+      properties:
+        id:
+          type: string
+          description: The workspace identifier
+        name:
+          type: string
+```
+
+The entity property `id` does not match the global parameter name `workspace_id`, so the provider-level value will not be applied automatically. Add `x-speakeasy-name-override` to align the names:
+
+```yaml
+components:
+  schemas:
+    Workspace:
+      x-speakeasy-entity: Workspace
+      type: object
+      properties:
+        id:
+          type: string
+          description: The workspace identifier
+          x-speakeasy-name-override: workspace_id
+        name:
+          type: string
+```
+
+With this override in place, the `workspace_id` global parameter value is taken from the provider configuration and used for the entity property. Any `x-speakeasy-match` that was only compensating for the naming mismatch is no longer needed:
+
+```yaml
+paths:
+  /workspaces/{workspace_id}:
+    get:
+      x-speakeasy-entity-operation: Workspace#read
+      parameters:
+        - name: workspace_id
+          in: path
+          required: true
+          schema:
+            type: string
+          # No x-speakeasy-match needed — the entity property name matches
+          # the global via x-speakeasy-name-override
+```
+
+The resulting Terraform configuration uses the global seamlessly:
+
+```hcl
+provider "examplecloud" {
+  workspace_id = "ws-abc123"
+}
+
+# workspace_id is automatically populated from the provider config
+resource "examplecloud_workspace" "main" {
+  name = "My Workspace"
+}
+
+# Individual resources can override the provider-level value
+resource "examplecloud_workspace" "other" {
+  workspace_id = "ws-xyz789"
+  name         = "Other Workspace"
+}
 ```
 
 ### Configuring Environment Variables

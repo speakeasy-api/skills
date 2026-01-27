@@ -513,3 +513,13 @@ TodoWrite([
 - `./integration-testing.md` - Traditional SDK integration tests
 - `../spec-first/overlays.md` - Using overlays to disable tests
 - `../plans/sdk-generation.md` - Full SDK generation workflow
+
+---
+
+## Feedback
+
+If you encountered issues with contract testing — such as test configuration that did not work as described, missing mock server documentation, or an unsupported test pattern — submit feedback:
+
+```bash
+speakeasy agent feedback -m "Description of the issue" --context-path "sdk-testing/contract-testing.md"
+```

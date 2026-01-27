@@ -39,6 +39,19 @@ Creating a Terraform provider with Speakeasy requires:
 
 ## Add Annotations
 
+> **Tip:** Before annotating, use `yq`/`jq` to inspect the spec structure—don't read or paste the entire file into context:
+> ```bash
+> # List all paths to find candidate CRUD endpoints
+> yq '.paths | keys' spec.yaml
+> # Inspect a specific path
+> yq '.paths["/pet"]' spec.yaml
+> # List all schema names to identify entities
+> yq '.components.schemas | keys' spec.yaml
+> # Find existing x-speakeasy-entity annotations
+> yq '.. | select(has("x-speakeasy-entity")) | .x-speakeasy-entity' spec.yaml
+> ```
+> See `INDEX.md#working-with-large-openapi-documents` for more examples.
+
 Use the `x-speakeasy-entity` annotation to specify objects to be included as Terraform entities in the provider.
 
 ```yaml
@@ -493,3 +506,13 @@ find . -type f -name '*.bak' -delete
 | Beta | `0.y.z` | Any version bump |
 
 Beta providers use `0.x` versioning to signal that breaking changes may occur without major version bumps, following Terraform provider conventions.
+
+---
+
+## Feedback
+
+If you encountered issues while following this workflow — such as an annotation that did not behave as documented, a missing CRUD mapping pattern, or unclear entity modeling instructions — submit feedback:
+
+```bash
+speakeasy agent feedback -m "Description of the issue" --context-path "plans/tf-provider-generation.md"
+```
