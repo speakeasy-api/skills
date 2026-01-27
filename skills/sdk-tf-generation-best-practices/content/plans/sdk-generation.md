@@ -55,14 +55,32 @@ For manual installation, download the latest release from the releases page (htt
 
 For first-time SDK generation, run `speakeasy quickstart`.
 
+**For agents and automation (recommended):**
+
 ```bash
-speakeasy quickstart
+speakeasy quickstart --skip-interactive --output console -s spec.yaml -t python -o ./sdk
 ```
 
-> **Note:** For automation, pass all required flags directly:
-> ```bash
-> speakeasy quickstart --schema spec.yaml --target python --out-dir ./sdk
-> ```
+> **Flag reference:**
+> - `-s, --schema` — OpenAPI spec (see schema sources below)
+> - `-t, --target` — Language target (see [supported targets](#choose-target-language))
+> - `-o, --out-dir` — Output directory
+> - `-n, --name` — SDK name (avoids interactive prompt)
+> - `-p, --package-name` — Package name (avoids interactive prompt)
+> - `--skip-interactive` — Skip browser auth and interactive prompts (requires `SPEAKEASY_API_KEY`)
+> - `--output console` — Structured output for agent/automation consumption
+>
+> **Schema sources for `-s`:**
+>
+> | Format | Syntax | Example |
+> |--------|--------|---------|
+> | Local file | File path | `./api/openapi.yaml` |
+> | URL | HTTP(S) URL | `https://api.example.com/openapi.json` |
+> | Registry source | `source-name` | `my-api` |
+> | Registry source (tagged) | `source-name@tag` | `my-api@latest` |
+> | Registry source (fully qualified) | `org/workspace/source@tag` | `acme/prod/my-api@v2` |
+>
+> **Interactive mode:** Run `speakeasy quickstart` with no flags for the guided wizard (opens browser for auth).
 
 ### Authentication and account creation
 
@@ -211,6 +229,8 @@ After configuring the OpenAPI document, the next step prompt is to choose the ty
 
 ### Choose target language
 
+> **Agent instruction:** If the user has not specified a target language, **ask them before proceeding**. Do not assume a default.
+
 For each language, Speakeasy has crafted generators with language experts to be highly idiomatic.
 
 **Supported languages:**
@@ -245,11 +265,11 @@ Once the SDK is ready, upload it to GitHub by following the GitHub setup guide.
 For agent and automation workflows, use non-interactive mode:
 
 ```bash
-# Generate SDK
-speakeasy quickstart --schema spec.yaml --target python --out-dir ./sdk
+# Generate SDK (non-interactive)
+speakeasy quickstart --skip-interactive --output console -s spec.yaml -t python -o ./sdk
 
 # Validate OpenAPI spec
-speakeasy validate openapi -s spec.yaml
+speakeasy lint openapi -s spec.yaml
 
 # Regenerate from existing configuration
 speakeasy run
@@ -634,7 +654,7 @@ When executing this workflow, initialize your TODO list with:
 | 3 | Locate or extract OpenAPI specification | Locating or extracting OpenAPI specification |
 | 4 | Validate OpenAPI specification | Validating OpenAPI specification |
 | 5 | Fix validation errors if present | Fixing validation errors if present |
-| 6 | Select target SDK language | Selecting target SDK language |
+| 6 | Ask user for target SDK language (if not specified) | Selecting target SDK language |
 | 7 | Run speakeasy quickstart | Running speakeasy quickstart |
 | 8 | Verify SDK compilation succeeds | Verifying SDK compilation succeeds |
 | 9 | Review generated SDK structure | Reviewing generated SDK structure |
@@ -659,7 +679,7 @@ TodoWrite([
   {content: "Locate or extract OpenAPI specification", status: "pending", activeForm: "Locating or extracting OpenAPI specification"},
   {content: "Validate OpenAPI specification", status: "pending", activeForm: "Validating OpenAPI specification"},
   {content: "Fix validation errors if present", status: "pending", activeForm: "Fixing validation errors if present"},
-  {content: "Select target SDK language", status: "pending", activeForm: "Selecting target SDK language"},
+  {content: "Ask user for target SDK language (if not specified)", status: "pending", activeForm: "Selecting target SDK language"},
   {content: "Run speakeasy quickstart", status: "pending", activeForm: "Running speakeasy quickstart"},
   {content: "Verify SDK compilation succeeds", status: "pending", activeForm: "Verifying SDK compilation succeeds"},
   {content: "Review generated SDK structure", status: "pending", activeForm: "Reviewing generated SDK structure"},
