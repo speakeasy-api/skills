@@ -51,6 +51,80 @@ For manual installation, download the latest release from the releases page (htt
 
 ---
 
+## Version Management
+
+The Speakeasy CLI binary version and the `speakeasyVersion` field in `workflow.yaml` are **independent concepts**:
+
+| Concept | What It Controls | Where It Lives |
+|---------|-----------------|----------------|
+| CLI binary version | The `speakeasy` command on your machine | Installed via Homebrew / install script |
+| `speakeasyVersion` field | The generator version used by `speakeasy run` | `.speakeasy/workflow.yaml` |
+
+### `speakeasyVersion: latest` vs Pinned
+
+```yaml
+# Option 1: Always use the latest generator (recommended for active development)
+speakeasyVersion: latest
+
+# Option 2: Pin to a specific version (recommended for stability / CI)
+speakeasyVersion: 1.462.2
+```
+
+| Setting | Pros | Cons |
+|---------|------|------|
+| `latest` | Always gets newest features and fixes | May introduce breaking changes |
+| Pinned (`1.x.x`) | Reproducible builds, stable CI | Must manually bump to get updates |
+
+### Bumping a Pinned Version to Latest
+
+1. **Check current version** in `.speakeasy/workflow.yaml`:
+   ```yaml
+   speakeasyVersion: 1.462.2  # ← current pinned version
+   ```
+
+2. **Update to latest** — either set to `latest` or a specific newer version:
+   ```yaml
+   speakeasyVersion: latest
+   ```
+
+3. **Regenerate the SDK**:
+   ```bash
+   speakeasy run
+   ```
+
+4. **Verify** — check `.speakeasy/workflow.lock` for the resolved version:
+   ```yaml
+   speakeasyVersion: 1.500.0  # ← actual version used
+   ```
+
+5. **Optionally re-pin** to the resolved version for reproducibility:
+   ```yaml
+   speakeasyVersion: 1.500.0
+   ```
+
+### Upgrading the CLI Binary
+
+The CLI binary is upgraded separately from `speakeasyVersion`:
+
+**Homebrew (macOS):**
+```bash
+brew upgrade speakeasy-api/tap/speakeasy
+```
+
+**Install script (macOS / Linux):**
+```bash
+curl -fsSL https://go.speakeasy.com/cli-install.sh | sh
+```
+
+**Verify installed version:**
+```bash
+speakeasy --version
+```
+
+> **Note:** Upgrading the CLI binary does not change the `speakeasyVersion` in `workflow.yaml`. They are managed independently. A newer CLI can still use an older generator version if `speakeasyVersion` is pinned.
+
+---
+
 ## Speakeasy Quickstart
 
 For first-time SDK generation, run `speakeasy quickstart`.
@@ -95,6 +169,15 @@ Free accounts can continue to generate one SDK with up to 50 API methods free of
 ### Upload an OpenAPI document
 
 After authentication, the system prompts for an OpenAPI document.
+
+> **Tip:** OpenAPI specs can be large. Use `yq`/`jq` to inspect specific sections—don't read or paste the entire file into context:
+> ```bash
+> # Explore structure without loading the full spec
+> yq '.paths | keys' spec.yaml          # List endpoints
+> yq '.components.schemas | keys' spec.yaml  # List schemas
+> jq '.paths | keys' spec.json          # JSON variant
+> ```
+> See `INDEX.md#working-with-large-openapi-documents` for more examples.
 
 Provide either a link to a remote hosted OpenAPI document, or a relative path to a local file in one of the supported formats:
 
@@ -748,3 +831,13 @@ TodoWrite([
 - Step 10 only applies to Java SDKs targeting Spring Boot applications
 - Steps 13-15 (README) are recommended for production SDKs
 - Steps 11-19 are optional based on SDK maturity requirements
+
+---
+
+## Feedback
+
+If you encountered issues while following this workflow — such as a step that did not work as described, a missing configuration option, or unclear instructions — submit feedback:
+
+```bash
+speakeasy agent feedback -m "Description of the issue" --context-path "plans/sdk-generation.md"
+```

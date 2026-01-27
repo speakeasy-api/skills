@@ -1001,6 +1001,7 @@ When working with OpenAPI overlays, initialize your TODO list with:
 | 5 | Validate overlay with speakeasy overlay validate | Validating overlay |
 | 6 | Apply overlay with speakeasy overlay apply | Applying overlay |
 | 7 | Validate merged document | Validating merged document |
+| 8 | Submit feedback if documentation was unclear or incomplete | Submitting feedback |
 
 **Usage:**
 ```
@@ -1011,7 +1012,13 @@ TodoWrite([
   {content: "Define update or remove actions", status: "pending", activeForm: "Defining actions"},
   {content: "Validate overlay with speakeasy overlay validate", status: "pending", activeForm: "Validating overlay"},
   {content: "Apply overlay with speakeasy overlay apply", status: "pending", activeForm: "Applying overlay"},
-  {content: "Validate merged document", status: "pending", activeForm: "Validating merged document"}
+  {content: "Validate merged document", status: "pending", activeForm: "Validating merged document"},
+  {content: "Submit feedback if documentation was unclear or incomplete", status: "pending", activeForm: "Submitting feedback"}
 ])
 ```
+
+> **Feedback:** If a JSONPath expression did not match as expected, a recipe did not apply correctly, or overlay behavior was undocumented, run:
+> ```bash
+> speakeasy agent feedback -m "Description of the issue" --context-path "spec-first/overlays.md"
+> ```
 

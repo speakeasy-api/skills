@@ -3,10 +3,12 @@ name: sdk-tf-generation-best-practices
 description: >-
   Use when generating SDKs, Terraform providers, or MCP servers with Speakeasy,
   or when needing best practices for SDK/Terraform generation, customization,
-  testing, or OpenAPI spec management. Triggers on "generate SDK", "create
-  terraform provider", "generate MCP server", "SDK best practices", "speakeasy
-  generation", "SDK customization", "fix generation", "SDK hooks", "SDK testing",
-  or "openapi overlay".
+  testing, or OpenAPI spec management. Triggers on "generate SDK", "regenerate
+  SDK", "update SDK", "create terraform provider", "generate MCP server", "SDK
+  best practices", "speakeasy generation", "SDK customization", "fix generation",
+  "SDK hooks", "SDK testing", "test my SDK", "openapi overlay", "upgrade
+  speakeasy", "bump version", "SDK readme", "SDK documentation", "add examples
+  to spec".
 license: Apache-2.0
 ---
 
@@ -24,11 +26,21 @@ Comprehensive best-practices reference for generating SDKs and Terraform provide
 - Fixing OpenAPI validation errors or applying overlays
 - Testing generated SDKs (integration, contract, Arazzo)
 - Understanding language-specific SDK patterns (TypeScript, Python, Go, Java, C#, Ruby, PHP)
-- User says: "generate SDK", "SDK best practices", "terraform provider", "generate MCP server", "SDK customization", "SDK testing"
+- Upgrading or bumping the Speakeasy CLI version in workflow.yaml
+- Regenerating an SDK after spec or version changes
+- Customizing SDK README documentation
+- Adding examples to an OpenAPI spec via overlays
+- Testing generated SDK endpoints
+- User says: "generate SDK", "regenerate SDK", "update SDK", "SDK best practices", "terraform provider", "generate MCP server", "SDK customization", "SDK testing", "test my SDK", "upgrade speakeasy", "bump version", "SDK readme", "SDK documentation", "add examples to spec"
 
 ## How to Use
 
 This skill contains detailed guides in the `content/` subdirectory relative to this file. **Read the specific guide** for the user's task rather than trying to answer from this index alone.
+
+These guides are also accessible via the Speakeasy CLI:
+```bash
+speakeasy agent context [path]
+```
 
 To find the right guide, use the routing table below or the decision tree.
 
@@ -74,6 +86,15 @@ To find the right guide, use the routing table below or the decision tree.
 | Run AI-powered contract tests | `content/sdk-testing/contract-testing.md` |
 | Fix ResponseValidationError at runtime | `content/sdk-testing/contract-testing.md` |
 | Validate spec matches live API | `content/spec-first/validation.md#dynamic-validation-contract-testing` |
+| Upgrade Speakeasy version in workflow.yaml | `content/plans/sdk-generation.md#version-management` |
+| Bump pinned speakeasyVersion to latest | `content/plans/sdk-generation.md#version-management` |
+| Regenerate SDK after spec or version change | `content/plans/sdk-generation.md` |
+| Customize SDK README with documentation | `content/sdk-customization/readme-customization.md` |
+| Add branding, examples, or guides to SDK README | `content/sdk-customization/readme-customization.md` |
+| Add examples to OpenAPI spec via overlay | `content/spec-first/overlays.md#add-examples` |
+| Add API-response-based examples to spec | `content/spec-first/overlays.md#add-examples` |
+| Test SDK against live API | `content/sdk-testing/integration-testing.md` |
+| Run contract tests for generated SDK | `content/sdk-testing/contract-testing.md` |
 
 ## Directory Structure
 
@@ -200,20 +221,53 @@ PROBLEM
                  → spec-first/overlays.md#overlay-recipes
 ```
 
+## Working with Large OpenAPI Documents
+
+OpenAPI specs can be thousands of lines. **Do not load the full spec into context.** Use `yq` (YAML) or `jq` (JSON) to extract only the sections you need.
+
+```bash
+# List all paths
+yq '.paths | keys' spec.yaml
+
+# Inspect a specific endpoint
+yq '.paths["/users/{id}"]' spec.yaml
+
+# List all schema names
+yq '.components.schemas | keys' spec.yaml
+
+# Inspect a specific schema
+yq '.components.schemas.User' spec.yaml
+
+# Check server URLs
+yq '.servers' spec.yaml
+
+# List all operationIds
+yq '[.paths[][].operationId // empty] | unique' spec.yaml
+
+# For JSON specs, use jq
+jq '.paths | keys' spec.json
+jq '.components.schemas.User' spec.json
+```
+
+> **Note:** If `yq`/`jq` aren't available, use targeted `grep` searches instead of copying the full spec into context:
+> ```bash
+> grep -n 'operationId:' spec.yaml
+> grep -n 'x-speakeasy-entity' spec.yaml
+> ```
+
 ## Common Workflows
 
 ### Workflow A: First-Time SDK Generation
 
 1. Read `content/plans/sdk-generation.md`
-2. Run `speakeasy quickstart --skip-interactive --output console -s <spec> -t <target> -n <name> -p <package>`
-   - `<spec>` can be: local file (`./openapi.yaml`), URL (`https://...`), or registry source (`my-api@latest`)
-3. SDK generated in the output directory
+2. Run `speakeasy quickstart --skip-interactive --output console -s spec.yaml -t python -o ./sdk`
+3. SDK generated in output directory
 
 ### Workflow B: Existing Codebase → SDK
 
 1. Identify framework in `content/code-first/`
 2. Extract OpenAPI spec
-3. Validate with `speakeasy lint openapi --non-interactive -s <spec>`
+3. Validate with `speakeasy lint openapi --non-interactive -s spec.yaml`
 4. Fix issues using `content/spec-first/` guides
 5. Generate SDK via `content/plans/sdk-generation.md`
 
@@ -222,7 +276,7 @@ PROBLEM
 1. Ensure `gen.yaml` exists (from quickstart)
 2. Read `content/sdk-customization/` guides
 3. Modify `gen.yaml`
-4. Regenerate with `speakeasy run --output console`
+4. Regenerate with `speakeasy run -y --output console`
 
 ### Workflow D: Multi-Target SDK (Azure, GCP, etc.)
 
@@ -238,20 +292,22 @@ PROBLEM
 3. For predefined extension points → `content/sdk-languages/typescript.md#custom-code-regions`
 4. For complex logic → `content/sdk-languages/typescript.md#extra-modules-pattern`
 
-## Essential CLI Commands
+### Workflow F: Upgrade and Regenerate
 
-For non-interactive environments (CI/CD, AI agents), always use `--skip-interactive` and/or `--output console` flags.
+1. Check current `speakeasyVersion` in `.speakeasy/workflow.yaml`
+2. Update `speakeasyVersion` to `latest` or a specific version → `content/plans/sdk-generation.md#version-management`
+3. Regenerate with `speakeasy run` → `content/plans/sdk-generation.md`
+4. Test the regenerated SDK → `content/sdk-testing/integration-testing.md` or `content/sdk-testing/contract-testing.md`
+5. Commit changes
+
+## Essential CLI Commands
 
 | Command | Purpose |
 |---------|---------|
-| `speakeasy quickstart --skip-interactive --output console -s <spec> -t <target> -n <name> -p <package>` | Non-interactive SDK setup |
-| `speakeasy run --output console` | Regenerate SDK from workflow.yaml |
-| `speakeasy lint openapi --non-interactive -s <spec>` | Validate OpenAPI spec |
-| `speakeasy status --output json` | Check workspace status (JSON for automation) |
-| `speakeasy pull --list --format json` | List available registry sources |
-| `speakeasy auth login` | Authenticate with Speakeasy (interactive) |
-
-**Schema sources:** The `-s <spec>` flag accepts local files (`./openapi.yaml`), URLs (`https://...`), or registry sources (`my-api@latest`, `org/workspace/source@tag`).
+| `speakeasy quickstart --skip-interactive --output console -s spec.yaml -t python -o ./sdk` | Non-interactive SDK setup |
+| `speakeasy run -y --output console` | Regenerate SDK from gen.yaml |
+| `speakeasy lint openapi --non-interactive -s spec.yaml` | Validate OpenAPI spec |
+| `speakeasy auth login` | Authenticate with Speakeasy |
 
 ## Getting Help
 
@@ -260,15 +316,29 @@ For non-interactive environments (CI/CD, AI agents), always use `--skip-interact
 - **Unsupported feature:** Check language guide in `content/sdk-languages/`
 - **CLI errors:** See `content/CLI_REFERENCE.md` or run `speakeasy --help`
 
+## Providing Feedback
+
+If you encounter missing documentation, unclear instructions, or incorrect examples in this agent context, submit feedback directly:
+
+```bash
+# General feedback
+speakeasy agent feedback -m "Description of the issue or suggestion"
+
+# Feedback about a specific document
+speakeasy agent feedback -m "Description of the issue" --context-path "path/to/document.md"
+```
+
+Feedback helps improve these documents for all agents. Submit feedback when:
+- A guide is missing steps needed to complete a task
+- An example does not work as documented
+- A CLI command behaves differently than described
+- You cannot find documentation for a supported feature
+
 ## Related Skills
 
 - `start-new-sdk-project` - Quick interactive setup with `speakeasy quickstart`
+- `regenerate-sdk` - Re-run generation after config changes
+- `validate-openapi-spec` - Lint and validate OpenAPI specs
 - `diagnose-generation-failure` - Troubleshoot failed generation runs
-- `manage-openapi-overlays` - Create, apply, and fix specs with OpenAPI overlays
-- `improve-sdk-naming` - AI-powered and manual SDK method naming improvements
-- `generate-terraform-provider` - Generate and publish Terraform providers
-- `extract-openapi-from-code` - Extract OpenAPI specs from 8 API frameworks
-- `customize-sdk-hooks` - Implement SDK lifecycle hooks for custom behavior
-- `setup-sdk-testing` - Contract testing, Arazzo workflows, and integration tests
-- `generate-mcp-server` - Generate MCP servers for AI assistant integration
-- `customize-sdk-runtime` - Configure retries, timeouts, pagination, and error handling
+- `create-openapi-overlay` - Create overlays for spec customization
+- `fix-validation-errors-with-overlays` - Fix lint errors with overlays

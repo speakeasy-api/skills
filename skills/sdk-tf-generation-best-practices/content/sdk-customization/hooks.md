@@ -1107,6 +1107,7 @@ When implementing SDK hooks, initialize your TODO list with:
 | 6 | Register hooks in registration.ts | Registering hooks |
 | 7 | Write unit tests for hooks | Writing unit tests for hooks |
 | 8 | Test hooks with real SDK calls | Testing hooks with SDK calls |
+| 9 | Submit feedback if documentation was unclear or incomplete | Submitting feedback |
 
 **Usage:**
 ```
@@ -1118,6 +1119,12 @@ TodoWrite([
   {content: "Implement AfterErrorHook if needed", status: "pending", activeForm: "Implementing AfterErrorHook"},
   {content: "Register hooks in registration.ts", status: "pending", activeForm: "Registering hooks"},
   {content: "Write unit tests for hooks", status: "pending", activeForm: "Writing unit tests for hooks"},
-  {content: "Test hooks with real SDK calls", status: "pending", activeForm: "Testing hooks with SDK calls"}
+  {content: "Test hooks with real SDK calls", status: "pending", activeForm: "Testing hooks with SDK calls"},
+  {content: "Submit feedback if documentation was unclear or incomplete", status: "pending", activeForm: "Submitting feedback"}
 ])
 ```
+
+> **Feedback:** If a hook pattern did not work for your language, an interface was missing, or you needed a hook type not documented here, run:
+> ```bash
+> speakeasy agent feedback -m "Description of the issue" --context-path "sdk-customization/hooks.md"
+> ```
