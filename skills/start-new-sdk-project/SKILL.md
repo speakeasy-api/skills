@@ -37,7 +37,7 @@ For non-interactive environments (CI/CD, AI agents), set:
 ```bash
 export SPEAKEASY_API_KEY="<your-api-key>"
 ```
-See `configure-authentication` skill for details.
+Run `speakeasy auth login` to authenticate interactively, or set the `SPEAKEASY_API_KEY` environment variable.
 
 ## Command
 
@@ -135,13 +135,6 @@ speakeasy quickstart --skip-interactive --output console \
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| Workflow already exists | `.speakeasy/workflow.yaml` already present | Use `regenerate-sdk` skill instead |
+| Workflow already exists | `.speakeasy/workflow.yaml` already present | Run `speakeasy run` to regenerate the existing SDK instead |
 | Unauthorized | Missing or invalid API key | Run `speakeasy auth login` or set `SPEAKEASY_API_KEY` |
 | Schema not found | Invalid path, URL, or source name | Verify path exists or use `speakeasy pull --list` for sources |
-
-## Related Skills
-
-- `configure-authentication` - Set up API key before running quickstart
-- `validate-openapi-spec` - Check spec for issues before generating
-- `regenerate-sdk` - **Use this if workflow already exists**
-- `improve-operation-ids` - Improve SDK method names

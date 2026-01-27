@@ -71,9 +71,3 @@ speakeasy lint openapi --non-interactive -s ./openapi.yaml 2>&1 | grep -E "(erro
 | "file not found" | Invalid spec path | Check the file path exists |
 | Many duplicate errors | Shared schema issues | Fix the root schema, not each reference |
 | "$ref not found" | Broken reference | Check the reference path matches actual location |
-
-## Related Skills
-
-- `diagnose-generation-failure` - When lint errors cause generation to fail
-- `fix-validation-errors-with-overlays` - Fix issues without modifying source spec
-- `get-ai-suggestions` - Get AI-powered suggestions for improvements

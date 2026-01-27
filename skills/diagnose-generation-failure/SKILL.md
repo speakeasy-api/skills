@@ -74,10 +74,3 @@ For complex issues, produce a document:
 ### Recommended Approach
 [Your recommendation]
 ```
-
-## Related Skills
-
-- `validate-openapi-spec` - Run lint to identify specific errors
-- `fix-validation-errors-with-overlays` - Fix issues without modifying source
-- `get-ai-suggestions` - Get suggestions for operation IDs and error types
-- `regenerate-sdk` - Retry generation after fixing issues

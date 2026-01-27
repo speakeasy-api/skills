@@ -63,9 +63,3 @@ When specs have conflicts:
 | Schema conflicts | Duplicate schema names | Rename schemas before merging |
 | Missing references | Cross-spec $ref | Ensure all referenced schemas are included |
 | Duplicate paths | Same endpoint in multiple specs | Remove duplicates or use different base paths |
-
-## Related Skills
-
-- `validate-openapi-spec` - Validate merged output
-- `start-new-sdk-project` - Generate SDK from merged spec
-- `create-openapi-overlay` - Customize merged spec without editing

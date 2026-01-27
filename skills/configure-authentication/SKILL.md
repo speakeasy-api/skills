@@ -74,9 +74,3 @@ speakeasy_workspace_id: "<workspace-id>"  # optional
 workspace_api_keys:
   org@workspace: "<api-key>"
 ```
-
-## Related Skills
-
-- `start-new-sdk-project` - Requires auth for quickstart
-- `check-workspace-status` - Verify auth is working
-- `regenerate-sdk` - Requires auth for generation

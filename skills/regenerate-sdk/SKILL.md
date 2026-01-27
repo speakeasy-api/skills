@@ -36,7 +36,7 @@ For non-interactive environments (CI/CD, AI agents), set:
 ```bash
 export SPEAKEASY_API_KEY="<your-api-key>"
 ```
-See `configure-authentication` skill for details.
+Run `speakeasy auth login` to authenticate interactively, or set the `SPEAKEASY_API_KEY` environment variable.
 
 ## Command
 
@@ -96,11 +96,4 @@ speakeasy run --output console 2>&1 | tail -50
 If `speakeasy run` fails, check:
 1. Is the OpenAPI spec valid? Run `speakeasy lint openapi --non-interactive -s <spec>`
 2. Does the source path exist? Check `inputs.location` in workflow.yaml
-3. Are there blocking validation errors? See `diagnose-generation-failure` skill
-
-## Related Skills
-
-- `start-new-sdk-project` - Initial setup if no workflow.yaml exists
-- `validate-openapi-spec` - Check spec before regenerating
-- `diagnose-generation-failure` - When generation fails
-- `check-workspace-status` - See configured targets and sources
+3. Are there blocking validation errors? Run `speakeasy run --output console 2>&1 | tail -50` and check for blocking validation errors

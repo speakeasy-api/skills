@@ -40,7 +40,7 @@ speakeasy status --output json
 speakeasy status --output console
 ```
 
-Requires `SPEAKEASY_API_KEY` env var (see `configure-authentication` skill).
+Requires `SPEAKEASY_API_KEY` env var (run `speakeasy auth login` or export `SPEAKEASY_API_KEY` directly).
 
 ## Output Includes
 
@@ -56,9 +56,3 @@ Requires `SPEAKEASY_API_KEY` env var (see `configure-authentication` skill).
 | "unauthorized" | Missing or invalid API key | Run `speakeasy auth login` or set `SPEAKEASY_API_KEY` |
 | Empty output | No targets configured | Run `start-new-sdk-project` to set up first |
 | "workspace not found" | Wrong workspace ID | Check `~/.speakeasy/config.yaml` |
-
-## Related Skills
-
-- `configure-authentication` - Set up API key if status fails
-- `regenerate-sdk` - Run generation for configured targets
-- `start-new-sdk-project` - Set up new targets
