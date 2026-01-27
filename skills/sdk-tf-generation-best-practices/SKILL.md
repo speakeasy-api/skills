@@ -263,8 +263,6 @@ For non-interactive environments (CI/CD, AI agents), always use `--skip-interact
 ## Related Skills
 
 - `start-new-sdk-project` - Quick interactive setup with `speakeasy quickstart`
-- `regenerate-sdk` - Re-run generation after config changes
-- `validate-openapi-spec` - Lint and validate OpenAPI specs
 - `diagnose-generation-failure` - Troubleshoot failed generation runs
 - `manage-openapi-overlays` - Create, apply, and fix specs with OpenAPI overlays
 - `improve-sdk-naming` - AI-powered and manual SDK method naming improvements

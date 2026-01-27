@@ -46,7 +46,18 @@ Achieved parity between granular skills and the `sdk-tf-generation-best-practice
 
 **Standalone:** All skills had cross-references removed and essential info inlined.
 
-**Final count:** 16 skills (was 13; removed 5, added 8)
+**Final count:** 11 skills + 1 meta-skill (was 16; removed 5 trivial CLI-wrapper skills)
+
+### Trivial Skills Removed (HANDOFF.md cleanup)
+
+Removed 5 skills that just wrapped single CLI commands discoverable via `--help`:
+- `configure-authentication` — just `speakeasy auth login` or `export SPEAKEASY_API_KEY`
+- `check-workspace-status` — just `speakeasy status --output json`
+- `merge-openapi-specs` — just `speakeasy merge -s a -s b -o out`
+- `regenerate-sdk` — just `speakeasy run`
+- `validate-openapi-spec` — just `speakeasy lint openapi -s spec.yaml`
+
+Essential info (auth commands, lint/run commands) was already inlined into remaining skills during Phase 3 standalone work.
 
 ## Future Enhancements (from consensus analysis)
 

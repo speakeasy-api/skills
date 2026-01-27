@@ -41,7 +41,7 @@ speakeasy-api/skills/
 mkdir skills/{skill-name}
 ```
 
-Use `kebab-case` for directory names (e.g., `validate-openapi-spec`).
+Use `kebab-case` for directory names (e.g., `manage-openapi-overlays`).
 
 ### 2. SKILL.md Format
 

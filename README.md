@@ -34,12 +34,7 @@ npx skills add speakeasy-api/skills
 |-------|-------------|
 | `speakeasy:sdk-tf-generation-best-practices` | **Progressive Disclosure** — Comprehensive guide to all Speakeasy SDK and Terraform generation capability and best practices. Routes to detailed guides for generation workflows, language-specific patterns, customization, testing, and OpenAPI spec management |
 | `speakeasy:start-new-sdk-project` | You have an OpenAPI spec and want to generate an SDK |
-| `speakeasy:regenerate-sdk` | Your spec changed and you need to regenerate |
-| `speakeasy:validate-openapi-spec` | Checking if spec is valid, running `speakeasy lint` |
-| `speakeasy:check-workspace-status` | Asking what targets/sources are configured |
-| `speakeasy:merge-openapi-specs` | Combining multiple OpenAPI specs |
 | `speakeasy:diagnose-generation-failure` | SDK generation failed, seeing "Step Failed: Workflow" |
-| `speakeasy:configure-authentication` | Setting up Speakeasy auth in CI/CD or non-interactive environments |
 | `speakeasy:writing-openapi-specs` | Authoring OpenAPI specs from scratch or improving existing ones |
 | `speakeasy:manage-openapi-overlays` | Creating, applying, or fixing specs with OpenAPI overlays |
 | `speakeasy:improve-sdk-naming` | SDK method names are ugly, wanting AI-powered or manual naming improvements |
@@ -73,9 +68,7 @@ speakeasy-api/skills/
 ├── skills/
 │   ├── start-new-sdk-project/
 │   │   └── SKILL.md
-│   ├── regenerate-sdk/
-│   │   └── SKILL.md
-│   └── ... (16 skills total)
+│   └── ... (11 skills total)
 ├── templates/
 │   └── SKILL.template.md
 ├── AGENTS.md              # Contributor guidance for AI agents

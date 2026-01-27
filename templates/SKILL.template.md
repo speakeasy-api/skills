@@ -38,7 +38,7 @@ license: Apache-2.0
 export SPEAKEASY_API_KEY="<your-api-key>"
 ```
 
-See `configure-authentication` skill for details.
+Run `speakeasy auth login` interactively, or set the env var above for CI/CD.
 
 ## Command
 
