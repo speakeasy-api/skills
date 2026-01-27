@@ -183,15 +183,14 @@ PROBLEM
 ### Workflow A: First-Time SDK Generation
 
 1. Read `plans/sdk-generation.md`
-2. Run `speakeasy quickstart`
-3. Follow interactive prompts
-4. SDK generated in `./sdk-[language]/`
+2. Run `speakeasy quickstart --skip-interactive --output console -s spec.yaml -t python -o ./sdk`
+3. SDK generated in output directory
 
 ### Workflow B: Existing Codebase → SDK
 
 1. Identify framework in `code-first/`
 2. Extract OpenAPI spec
-3. Validate with `speakeasy validate openapi`
+3. Validate with `speakeasy lint openapi --non-interactive -s spec.yaml`
 4. Fix issues using `spec-first/` guides
 5. Generate SDK via `plans/sdk-generation.md`
 
@@ -200,7 +199,7 @@ PROBLEM
 1. Ensure `gen.yaml` exists (from quickstart)
 2. Read `sdk-customization/` guides
 3. Modify `gen.yaml`
-4. Regenerate with `speakeasy run`
+4. Regenerate with `speakeasy run -y --output console`
 
 ### Workflow D: Multi-Target SDK (Azure, GCP, etc.)
 
@@ -220,9 +219,9 @@ PROBLEM
 
 | Command | Purpose |
 |---------|---------|
-| `speakeasy quickstart` | Interactive SDK setup |
-| `speakeasy run` | Regenerate SDK from gen.yaml |
-| `speakeasy validate openapi -s spec.yaml` | Validate OpenAPI spec |
+| `speakeasy quickstart --skip-interactive --output console -s spec.yaml -t python -o ./sdk` | Non-interactive SDK setup |
+| `speakeasy run -y --output console` | Regenerate SDK from gen.yaml |
+| `speakeasy lint openapi --non-interactive -s spec.yaml` | Validate OpenAPI spec |
 | `speakeasy auth login` | Authenticate with Speakeasy |
 | `speakeasy agent context [path]` | Access this filesystem |
 

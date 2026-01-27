@@ -27,6 +27,25 @@ openapi_schema = app.openapi()
 
 The document is available at `/openapi.json` by default when the app runs.
 
+### Script-Based Extraction (No Server Needed)
+
+If you can't easily start the server (missing dependencies, no virtualenv, etc.), extract the spec directly with a one-off script:
+
+```python
+import json, sys
+sys.path.insert(0, ".")
+from main import app  # adjust import to match your app's entry point
+
+with open("openapi.json", "w") as f:
+    json.dump(app.openapi(), f, indent=2)
+```
+
+```bash
+python extract_openapi.py
+```
+
+> **Tip:** This only requires FastAPI and Pydantic installed — no ASGI server, no database connections, no `.env` setup. Use this as the **first approach** when the server can't be started.
+
 ## Installation
 
 No additional packages required - FastAPI includes OpenAPI generation.
@@ -373,10 +392,34 @@ After customization: `readBurger`
 
 Use custom ID generation or per-operation IDs to fix this.
 
+## Common FastAPI Lint Warnings
+
+When running `speakeasy lint openapi` on a FastAPI-generated spec, you may see warnings that are specific to how FastAPI generates OpenAPI docs. These are **non-blocking** — SDK generation will still succeed.
+
+| Warning | Cause | Fix |
+|---------|-------|-----|
+| `operation-tag-defined` — tag "X" is not defined at the global level | FastAPI `APIRouter(tags=["X"])` sets tags per-router but doesn't add them to the global `tags` array | Add `openapi_tags` metadata to the `FastAPI()` constructor (see [Tags and Tag Metadata](#tags-and-tag-metadata)) |
+| `operation-operationId` — operationId is verbose | FastAPI default IDs like `read_burger_burger__burger_id__get` | Use `custom_generate_unique_id_function` or per-route `operation_id=` |
+
+**Quick fix for missing global tags:**
+
+```python
+# Collect all tags used in routers and define them globally
+app = FastAPI(
+    openapi_tags=[
+        {"name": "users", "description": "User operations"},
+        {"name": "orders", "description": "Order operations"},
+        # ... add all tags used in your APIRouters
+    ]
+)
+```
+
+> **Note:** These warnings don't block SDK generation. Fix them for a cleaner spec, or ignore them if you're prototyping.
+
 ## Validation Command
 
 ```bash
-speakeasy validate openapi -s openapi.yaml
+speakeasy lint openapi -s openapi.yaml
 ```
 
 ## Next Steps
@@ -384,8 +427,8 @@ speakeasy validate openapi -s openapi.yaml
 After extracting the OpenAPI document:
 
 1. Save it to a file (usually at `/openapi.json` endpoint)
-2. Run `speakeasy validate openapi -s openapi.yaml`
-3. Generate SDK: `speakeasy quickstart --schema openapi.yaml --target python --out-dir ./sdk`
+2. Run `speakeasy lint openapi -s openapi.yaml`
+3. Generate SDK: `speakeasy quickstart --skip-interactive --output console -s openapi.yaml -t python -o ./sdk`
 4. Set up CI/CD automation for SDK regeneration
 
 ## Reference
@@ -405,13 +448,11 @@ When executing this workflow, initialize your TODO list with:
 | 1 | Locate FastAPI application file | Locating FastAPI application file |
 | 2 | Verify FastAPI and Pydantic are installed | Verifying FastAPI and Pydantic installation |
 | 3 | Check application metadata configuration | Checking application metadata configuration |
-| 4 | Start FastAPI application | Starting FastAPI application |
-| 5 | Fetch OpenAPI JSON from /openapi.json endpoint | Fetching OpenAPI JSON from /openapi.json endpoint |
-| 6 | Save OpenAPI spec to file | Saving OpenAPI spec to file |
-| 7 | Stop FastAPI application | Stopping FastAPI application |
-| 8 | Validate spec with speakeasy validate | Validating spec with speakeasy validate |
-| 9 | Review operation IDs in spec | Reviewing operation IDs in spec |
-| 10 | Review tags and descriptions | Reviewing tags and descriptions |
+| 4 | Extract OpenAPI spec (script or server — see below) | Extracting OpenAPI spec |
+| 5 | Save OpenAPI spec to file | Saving OpenAPI spec to file |
+| 6 | Validate spec with speakeasy lint | Validating spec with speakeasy lint |
+| 7 | Review operation IDs in spec | Reviewing operation IDs in spec |
+| 8 | Review tags and descriptions | Reviewing tags and descriptions |
 
 **Usage:**
 ```
@@ -419,15 +460,17 @@ TodoWrite([
   {content: "Locate FastAPI application file", status: "pending", activeForm: "Locating FastAPI application file"},
   {content: "Verify FastAPI and Pydantic are installed", status: "pending", activeForm: "Verifying FastAPI and Pydantic installation"},
   {content: "Check application metadata configuration", status: "pending", activeForm: "Checking application metadata configuration"},
-  {content: "Start FastAPI application", status: "pending", activeForm: "Starting FastAPI application"},
-  {content: "Fetch OpenAPI JSON from /openapi.json endpoint", status: "pending", activeForm: "Fetching OpenAPI JSON from /openapi.json endpoint"},
+  {content: "Extract OpenAPI spec (script or server)", status: "pending", activeForm: "Extracting OpenAPI spec"},
   {content: "Save OpenAPI spec to file", status: "pending", activeForm: "Saving OpenAPI spec to file"},
-  {content: "Stop FastAPI application", status: "pending", activeForm: "Stopping FastAPI application"},
-  {content: "Validate spec with speakeasy validate", status: "pending", activeForm: "Validating spec with speakeasy validate"},
+  {content: "Validate spec with speakeasy lint", status: "pending", activeForm: "Validating spec with speakeasy lint"},
   {content: "Review operation IDs in spec", status: "pending", activeForm: "Reviewing operation IDs in spec"},
   {content: "Review tags and descriptions", status: "pending", activeForm: "Reviewing tags and descriptions"}
 ])
 ```
+
+**Step 4 — Extraction method decision:**
+- **Script extraction (preferred):** Use `app.openapi()` in a one-off script. Works without running the server, no ASGI server or database needed. See [Script-Based Extraction](#script-based-extraction-no-server-needed).
+- **Server extraction (fallback):** Start the app with `uvicorn main:app`, fetch `/openapi.json`, then stop the server. Use this only if `app.openapi()` fails due to lazy initialization or middleware dependencies.
 
 **Customization sub-workflow (optional):**
 

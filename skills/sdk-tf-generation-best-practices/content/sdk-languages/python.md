@@ -750,9 +750,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install dependencies
-        run: poetry install --no-interaction
+        run: uv sync
       - name: Run custom code tests
-        run: python -m unittest discover -s src/myapi/extra/tests -t src
+        run: uv run python -m unittest discover -s src/myapi/extra/tests -t src
 ```
 
 > **Pattern Source:** Extracted from [mistralai/client-python](https://github.com/mistralai/client-python)

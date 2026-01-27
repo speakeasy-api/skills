@@ -2,14 +2,14 @@
 short_description: "Canonical Speakeasy CLI command reference"
 long_description: |
   The authoritative source of truth for Speakeasy CLI commands. Agents MUST only
-  use commands documented here. All commands verified against speakeasy v1.662.0.
+  use commands documented here. All commands verified against speakeasy v1.698.0.
 ---
 
 # Speakeasy CLI Reference
 
 This document contains the canonical CLI commands for Speakeasy. Agents should ONLY recommend commands listed here.
 
-> **Note:** Commands verified against `speakeasy version 1.662.0`. Run `speakeasy --help` to check for updates.
+> **Note:** Commands verified against `speakeasy version 1.698.0`. Run `speakeasy --help` to check for updates.
 
 ---
 
@@ -83,19 +83,23 @@ First-time SDK setup with guided wizard:
 speakeasy quickstart
 ```
 
-**With flags (for automation):**
+**With flags (non-interactive, for agents and automation):**
 
 ```bash
-speakeasy quickstart \
-  --schema path/to/openapi.yaml \
-  --target python \
-  --out-dir ./sdk-python
+speakeasy quickstart --skip-interactive --output console \
+  -s path/to/openapi.yaml \
+  -t python \
+  -o ./sdk-python
 ```
 
 **Available flags:**
-- `-s, --schema` - Local filepath or URL for the OpenAPI schema
+- `-s, --schema` - Local filepath, URL, or registry source (see [Schema Sources](#schema-sources))
 - `-t, --target` - Generation target (see supported targets below)
 - `-o, --out-dir` - Output directory
+- `-n, --name` - SDK name (avoids interactive prompt)
+- `-p, --package-name` - Package name (avoids interactive prompt)
+- `--skip-interactive` - Skip browser auth and interactive prompts (requires `SPEAKEASY_API_KEY`)
+- `--output console` - Structured output for agent/automation consumption
 - `-f, --from` - Template from Speakeasy sandbox
 - `--skip-compile` - Skip compilation after setup
 
@@ -112,6 +116,18 @@ speakeasy quickstart \
 - `typescript`
 - `unity`
 
+### Schema Sources
+
+The `-s, --schema` flag accepts multiple source formats:
+
+| Format | Syntax | Example |
+|--------|--------|---------|
+| Local file | File path | `./api/openapi.yaml` |
+| URL | HTTP(S) URL | `https://api.example.com/openapi.json` |
+| Registry source | `source-name` | `my-api` |
+| Registry source (tagged) | `source-name@tag` | `my-api@latest` |
+| Registry source (fully qualified) | `org/workspace/source@tag` | `acme/prod/my-api@v2` |
+
 ### Run
 
 Execute the workflow defined in `.speakeasy/workflow.yaml`:
@@ -120,17 +136,19 @@ Execute the workflow defined in `.speakeasy/workflow.yaml`:
 speakeasy run
 ```
 
-**Common flags:**
+**Common flags (non-interactive):**
 
 ```bash
-speakeasy run \
-  --target my-sdk \          # Run specific target
-  --skip-compile \           # Skip compilation step
-  --skip-versioning \        # Skip version increment
-  --set-version 1.2.3        # Set manual version
+speakeasy run -y --output console \
+  --target my-sdk \
+  --skip-compile \
+  --skip-versioning \
+  --set-version 1.2.3
 ```
 
 **All available flags:**
+- `-y, --auto-yes` - Auto-accept all prompts (non-interactive)
+- `--output console` - Structured output for agent/automation consumption
 - `-t, --target` - Target to run (use 'all' for all targets)
 - `-s, --source` - Source to run (use 'all' for all sources)
 - `--skip-compile` - Skip compilation
@@ -162,14 +180,19 @@ speakeasy generate sdk \
 Check OpenAPI spec for errors (validate and lint are aliases):
 
 ```bash
-speakeasy lint openapi -s path/to/spec.yaml
+speakeasy lint openapi --non-interactive -s path/to/spec.yaml
 ```
 
 or equivalently:
 
 ```bash
-speakeasy validate openapi -s path/to/spec.yaml
+speakeasy validate openapi --non-interactive -s path/to/spec.yaml
 ```
+
+**Available flags:**
+- `--non-interactive` - Skip interactive prompts (recommended for agents/automation)
+- `-s, --schema` - Path to the OpenAPI spec file
+- `-H, --header` - Additional headers for remote spec URLs (can be repeated)
 
 **Output:** Lists validation errors with line numbers and suggestions.
 
@@ -180,10 +203,13 @@ speakeasy validate openapi -s path/to/spec.yaml
 ### Generate Provider
 
 ```bash
-speakeasy generate terraform \
-  --schema path/to/openapi.yaml \
-  --out ./terraform-provider
+speakeasy generate sdk \
+  --lang terraform \
+  -s path/to/openapi.yaml \
+  -o ./terraform-provider
 ```
+
+> **Note:** There is no separate `speakeasy generate terraform` command. Use `generate sdk --lang terraform`.
 
 **Prerequisites:**
 - OpenAPI spec must have `x-speakeasy-entity` annotations
@@ -414,10 +440,10 @@ If you need a CLI command that is not listed here:
 
 | Task | Command |
 |------|---------|
-| Generate SDK | `speakeasy quickstart --schema spec.yaml --target python --out-dir ./sdk` |
-| Regenerate SDK | `speakeasy run` |
-| Run specific target | `speakeasy run --target my-sdk` |
-| Validate spec | `speakeasy lint openapi -s spec.yaml` |
+| Generate SDK | `speakeasy quickstart --skip-interactive --output console -s spec.yaml -t python -o ./sdk` |
+| Regenerate SDK | `speakeasy run -y --output console` |
+| Run specific target | `speakeasy run -y --output console --target my-sdk` |
+| Validate spec | `speakeasy lint openapi --non-interactive -s spec.yaml` |
 | Convert Swagger | `speakeasy openapi transform convert-swagger -s old.yaml -o new.yaml` |
 | Merge specs | `speakeasy merge -s spec1.yaml -s spec2.yaml -o merged.yaml` |
 | Apply overlay | `speakeasy overlay apply -s spec.yaml -o overlay.yaml --out modified.yaml` |
