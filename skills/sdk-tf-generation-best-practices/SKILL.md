@@ -263,8 +263,12 @@ For non-interactive environments (CI/CD, AI agents), always use `--skip-interact
 ## Related Skills
 
 - `start-new-sdk-project` - Quick interactive setup with `speakeasy quickstart`
-- `regenerate-sdk` - Re-run generation after config changes
-- `validate-openapi-spec` - Lint and validate OpenAPI specs
 - `diagnose-generation-failure` - Troubleshoot failed generation runs
-- `create-openapi-overlay` - Create overlays for spec customization
-- `fix-validation-errors-with-overlays` - Fix lint errors with overlays
+- `manage-openapi-overlays` - Create, apply, and fix specs with OpenAPI overlays
+- `improve-sdk-naming` - AI-powered and manual SDK method naming improvements
+- `generate-terraform-provider` - Generate and publish Terraform providers
+- `extract-openapi-from-code` - Extract OpenAPI specs from 8 API frameworks
+- `customize-sdk-hooks` - Implement SDK lifecycle hooks for custom behavior
+- `setup-sdk-testing` - Contract testing, Arazzo workflows, and integration tests
+- `generate-mcp-server` - Generate MCP servers for AI assistant integration
+- `customize-sdk-runtime` - Configure retries, timeouts, pagination, and error handling

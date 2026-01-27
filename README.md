@@ -34,17 +34,16 @@ npx skills add speakeasy-api/skills
 |-------|-------------|
 | `speakeasy:sdk-tf-generation-best-practices` | **Progressive Disclosure** — Comprehensive guide to all Speakeasy SDK and Terraform generation capability and best practices. Routes to detailed guides for generation workflows, language-specific patterns, customization, testing, and OpenAPI spec management |
 | `speakeasy:start-new-sdk-project` | You have an OpenAPI spec and want to generate an SDK |
-| `speakeasy:regenerate-sdk` | Your spec changed and you need to regenerate |
-| `speakeasy:validate-openapi-spec` | Checking if spec is valid, running `speakeasy lint` |
-| `speakeasy:get-ai-suggestions` | SDK method names are ugly, wanting to improve operation IDs |
-| `speakeasy:check-workspace-status` | Asking what targets/sources are configured |
-| `speakeasy:create-openapi-overlay` | Need to customize SDK without editing source spec |
-| `speakeasy:apply-openapi-overlay` | Applying an overlay file to a spec |
-| `speakeasy:merge-openapi-specs` | Combining multiple OpenAPI specs |
 | `speakeasy:diagnose-generation-failure` | SDK generation failed, seeing "Step Failed: Workflow" |
-| `speakeasy:fix-validation-errors-with-overlays` | Have lint errors but can't modify source spec |
-| `speakeasy:improve-operation-ids` | SDK methods have names like `GetApiV1Users` |
-| `speakeasy:configure-authentication` | Setting up Speakeasy auth in CI/CD or non-interactive environments |
+| `speakeasy:writing-openapi-specs` | Authoring OpenAPI specs from scratch or improving existing ones |
+| `speakeasy:manage-openapi-overlays` | Creating, applying, or fixing specs with OpenAPI overlays |
+| `speakeasy:improve-sdk-naming` | SDK method names are ugly, wanting AI-powered or manual naming improvements |
+| `speakeasy:generate-terraform-provider` | Generating a Terraform provider from an OpenAPI spec |
+| `speakeasy:extract-openapi-from-code` | Extracting an OpenAPI spec from existing API code (FastAPI, Flask, Django, etc.) |
+| `speakeasy:customize-sdk-hooks` | Adding custom headers, telemetry, security hooks to generated SDKs |
+| `speakeasy:setup-sdk-testing` | Setting up contract tests, Arazzo workflows, or integration tests |
+| `speakeasy:generate-mcp-server` | Generating an MCP server for AI assistant integration |
+| `speakeasy:customize-sdk-runtime` | Configuring retries, timeouts, pagination, server selection, error handling |
 
 ## Key Principles
 
@@ -69,9 +68,7 @@ speakeasy-api/skills/
 ├── skills/
 │   ├── start-new-sdk-project/
 │   │   └── SKILL.md
-│   ├── regenerate-sdk/
-│   │   └── SKILL.md
-│   └── ... (13 skills total)
+│   └── ... (11 skills total)
 ├── templates/
 │   └── SKILL.template.md
 ├── AGENTS.md              # Contributor guidance for AI agents
