@@ -32,7 +32,7 @@ npx skills add speakeasy-api/skills
 
 | Skill | Use When... |
 |-------|-------------|
-| `speakeasy:speakeasy-agent-mode` | **Start here** — Use `speakeasy agent context` for accurate CLI info instead of web search. Provides feedback via `speakeasy agent feedback` |
+| `speakeasy:speakeasy-context` | **Start here** — Use `speakeasy agent context` for accurate CLI info instead of web search. Provides feedback via `speakeasy agent feedback` |
 | `speakeasy:sdk-tf-generation-best-practices` | **Progressive Disclosure** — Comprehensive guide to all Speakeasy SDK and Terraform generation capability and best practices. Routes to detailed guides for generation workflows, language-specific patterns, customization, testing, and OpenAPI spec management |
 | `speakeasy:start-new-sdk-project` | You have an OpenAPI spec and want to generate an SDK |
 | `speakeasy:regenerate-sdk` | Your spec changed and you need to regenerate |
