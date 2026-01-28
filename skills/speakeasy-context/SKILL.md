@@ -1,10 +1,10 @@
 ---
-name: speakeasy-agent-mode
+name: speakeasy-context
 description: FIRST step for any Speakeasy/SDK/OpenAPI task. Triggers on "speakeasy", "SDK generation", "generate SDK", "OpenAPI", "API spec".
 license: Apache-2.0
 ---
 
-# speakeasy-agent-mode
+# speakeasy-context
 
 ## Rule
 
