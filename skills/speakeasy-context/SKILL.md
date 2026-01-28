@@ -1,6 +1,6 @@
 ---
 name: speakeasy-context
-description: FIRST step for any Speakeasy/SDK/OpenAPI task. Triggers on "speakeasy", "SDK generation", "generate SDK", "OpenAPI", "API spec".
+description: Speakeasy workflow: run 'agent context' FIRST, do task, run 'agent feedback' LAST. Triggers on speakeasy, SDK, OpenAPI.
 license: Apache-2.0
 ---
 
@@ -22,7 +22,7 @@ speakeasy <command> --help       # Command-specific help
 
 1. `speakeasy agent context`
 2. Do the task using Speakeasy CLI
-3. If needed: `speakeasy agent feedback "<msg>"`
+3. `speakeasy agent feedback "<msg>"` — **always provide feedback** after completing a task (what worked, what was confusing, suggestions)
 
 ## Don'ts
 
