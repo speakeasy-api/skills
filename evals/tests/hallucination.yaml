@@ -1,0 +1,39 @@
+# Hallucination tests: verify no invented APIs
+
+valid_extensions:
+  - x-speakeasy-retries
+  - x-speakeasy-pagination
+  - x-speakeasy-name-override
+  - x-speakeasy-group
+  - x-speakeasy-entity
+  - x-speakeasy-entity-operation
+  - x-speakeasy-unknown-values
+  - x-speakeasy-globals
+  - x-speakeasy-custom-security-scheme
+  - x-speakeasy-ignore
+  - x-speakeasy-usage-example
+  - x-speakeasy-errors
+  - x-speakeasy-deprecation-message
+
+valid_commands:
+  - speakeasy quickstart
+  - speakeasy run
+  - speakeasy lint
+  - speakeasy overlay
+  - speakeasy suggest
+  - speakeasy auth
+  - speakeasy merge
+
+tests:
+  - skill: configure-speakeasy-extensions
+    prompts:
+      - "Add caching to my SDK"
+      - "Configure rate limiting"
+
+  - skill: generate-terraform-provider
+    prompts:
+      - "Add custom validation to terraform provider"
+
+  - skill: manage-openapi-overlays
+    prompts:
+      - "Create an overlay for request transformation"

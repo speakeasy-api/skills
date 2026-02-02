@@ -1,0 +1,50 @@
+# Correctness tests: verify output uses valid Speakeasy syntax
+
+tests:
+  - skill: configure-speakeasy-extensions
+    prompt: "Add retry configuration to GET /users endpoint with exponential backoff"
+    assertions:
+      - type: contains
+        value: "x-speakeasy-retries"
+      - type: contains
+        value: "backoff"
+      - type: valid_yaml
+
+  - skill: configure-speakeasy-extensions
+    prompt: "Make all enums in my OpenAPI spec open to handle unknown values"
+    assertions:
+      - type: contains
+        value: "x-speakeasy-unknown-values"
+      - type: contains
+        value: "allow"
+
+  - skill: generate-terraform-provider
+    prompt: "Annotate a Pet schema and its CRUD operations for Terraform"
+    assertions:
+      - type: contains
+        value: "x-speakeasy-entity"
+      - type: contains
+        value: "x-speakeasy-entity-operation"
+      - type: not_contains
+        value: "#list"
+
+  - skill: manage-openapi-overlays
+    prompt: "Create an overlay to rename the /users GET operation to listUsers"
+    assertions:
+      - type: contains
+        value: "overlay: 1.0.0"
+      - type: contains
+        value: "target"
+      - type: valid_yaml
+
+  - skill: extract-openapi-from-code
+    prompt: "How do I extract the OpenAPI spec from my FastAPI app?"
+    assertions:
+      - type: contains
+        value: "app.openapi()"
+
+  - skill: generate-sdk-for-python
+    prompt: "What's the gen.yaml config for async Python SDK?"
+    assertions:
+      - type: contains
+        value: "python"

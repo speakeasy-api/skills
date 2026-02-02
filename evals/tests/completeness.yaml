@@ -1,0 +1,31 @@
+# Completeness tests: verify all required steps are performed
+
+tests:
+  - skill: generate-terraform-provider
+    prompt: "Set up a new Terraform provider for my Petstore API"
+    required_steps:
+      - "Add x-speakeasy-entity to schemas"
+      - "Add x-speakeasy-entity-operation to endpoints"
+      - "Run speakeasy quickstart"
+      - "Build with go build"
+
+  - skill: configure-speakeasy-extensions
+    prompt: "Make all enums open and add global retry configuration"
+    required_steps:
+      - "Create overlay file"
+      - "Add x-speakeasy-unknown-values"
+      - "Add x-speakeasy-retries"
+
+  - skill: extract-openapi-from-code
+    prompt: "Extract OpenAPI from my FastAPI app for SDK generation"
+    required_steps:
+      - "Import app and call openapi()"
+      - "Save to file"
+      - "Run speakeasy lint"
+
+  - skill: manage-openapi-overlays
+    prompt: "Create an overlay to improve SDK method names"
+    required_steps:
+      - "Create overlay with version"
+      - "Add actions with targets"
+      - "Add x-speakeasy-name-override"
