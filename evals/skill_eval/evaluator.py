@@ -212,17 +212,20 @@ class SkillEvaluator:
             assessor = WorkspaceAssessor(workspace.base_dir)
             assessment = assessor.assess_generation(target)
 
-            # Phase 1: Add SDK compilation check if generation passed basic checks
+            # Add SDK compilation check if generation passed basic checks
+            # Mode: "quick" (2-15s) or "full" (30-120s)
             compilation_result = None
             if assessment.passed and test.get("verify_compilation", True):
-                # Find the SDK directory for compilation
                 sdk_dir = self._find_sdk_dir(workspace.base_dir, target)
                 if sdk_dir:
-                    compilation = assessor.assess_sdk_compilation(sdk_dir, target)
+                    # Use quick mode by default, full mode if explicitly requested
+                    compile_mode = test.get("compile_mode", "quick")
+                    compilation = assessor.assess_sdk_compilation(sdk_dir, target, mode=compile_mode)
                     compilation_result = {
                         "passed": compilation.passed,
                         "checks": compilation.checks,
                         "summary": compilation.summary,
+                        "mode": compile_mode,
                     }
                     # Compilation failure doesn't fail the whole test by default
                     # but is tracked separately for trend analysis

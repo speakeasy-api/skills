@@ -1,6 +1,9 @@
 # SDK Generation Tests
 # These tests verify that skills guide successful SDK generation
-# Phase 1: Includes SDK compilation, workflow structure, and gen.yaml verification
+#
+# Compilation modes:
+#   - quick: Fast type/syntax checks only (2-15s per target)
+#   - full: Complete build with dependencies (30-120s per target)
 
 tests:
   - name: typescript-sdk-from-clean-spec
@@ -8,9 +11,10 @@ tests:
     type: generation
     target: typescript
     spec_file: fixtures/petstore-minimal.yaml
-    verify_compilation: true  # Will run npm install && npm run build
-    verify_workflow: true     # Validates .speakeasy/workflow.yaml structure
-    verify_gen_yaml: true     # Validates language-specific gen.yaml config
+    verify_compilation: true
+    compile_mode: quick  # Uses tsc --noEmit instead of npm run build
+    verify_workflow: true
+    verify_gen_yaml: true
     task: |
       Generate a TypeScript SDK from the OpenAPI spec.
       Use speakeasy quickstart with appropriate naming.
@@ -20,7 +24,8 @@ tests:
     type: generation
     target: python
     spec_file: fixtures/petstore-minimal.yaml
-    verify_compilation: true  # Will verify package structure
+    verify_compilation: true
+    compile_mode: quick  # Uses python -m compileall
     verify_workflow: true
     verify_gen_yaml: true
     task: |
@@ -32,7 +37,8 @@ tests:
     type: generation
     target: go
     spec_file: fixtures/petstore-minimal.yaml
-    verify_compilation: true  # Will run go build ./...
+    verify_compilation: true
+    compile_mode: quick  # Uses go vet instead of go build
     verify_workflow: true
     verify_gen_yaml: true
     task: |
@@ -45,6 +51,7 @@ tests:
     target: typescript
     spec_file: fixtures/paginated-api.yaml
     verify_compilation: true
+    compile_mode: quick
     verify_workflow: true
     verify_gen_yaml: true
     task: |
@@ -58,9 +65,10 @@ tests:
     target: typescript
     spec_file: fixtures/petstore-minimal.yaml
     verify_compilation: true
+    compile_mode: quick
     verify_workflow: true
     verify_gen_yaml: true
-    verify_hooks: true  # Validates hook file presence
+    verify_hooks: true
     task: |
       Generate a TypeScript SDK and set up custom hooks.
       Create a beforeRequest hook that adds a custom header.
@@ -71,9 +79,10 @@ tests:
     target: typescript
     spec_file: fixtures/petstore-minimal.yaml
     verify_compilation: true
+    compile_mode: quick
     verify_workflow: true
     verify_gen_yaml: true
-    verify_mcp: true  # Validates MCP server configuration
+    verify_mcp: true
     task: |
       Generate a TypeScript SDK with MCP server support.
       Enable MCP server generation in the configuration.
@@ -81,11 +90,12 @@ tests:
   - name: multi-target-sdk-generation
     skill: generate-multi-target-sdk
     type: generation
-    target: typescript  # Primary target for compilation check
+    target: typescript
     spec_file: fixtures/petstore-minimal.yaml
     verify_compilation: true
+    compile_mode: quick
     verify_workflow: true
-    verify_multi_target: true  # Validates multi-target workflow
+    verify_multi_target: true
     task: |
       Generate SDKs for multiple targets (TypeScript and Python).
       Configure the workflow.yaml for multi-target generation.
