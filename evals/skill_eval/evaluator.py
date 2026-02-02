@@ -227,6 +227,88 @@ class SkillEvaluator:
                             "name": f"compile_{check['name']}",
                         })
 
+            # Extended generation checks
+            extended_results = {}
+
+            # Verify workflow.yaml structure
+            if test.get("verify_workflow", True):
+                workflow_assessment = assessor.assess_workflow_structure()
+                extended_results["workflow"] = {
+                    "passed": workflow_assessment.passed,
+                    "checks": workflow_assessment.checks,
+                }
+                for check in workflow_assessment.checks:
+                    if check["name"] not in ["workflow_exists", "valid_yaml"]:  # Already in base
+                        assessment.checks.append({
+                            **check,
+                            "name": f"workflow_{check['name']}",
+                        })
+
+            # Verify gen.yaml configuration
+            if test.get("verify_gen_yaml", True):
+                gen_assessment = assessor.assess_gen_yaml(target)
+                extended_results["gen_yaml"] = {
+                    "passed": gen_assessment.passed,
+                    "checks": gen_assessment.checks,
+                }
+                for check in gen_assessment.checks:
+                    assessment.checks.append({
+                        **check,
+                        "name": f"gen_{check['name']}",
+                    })
+
+            # Check hooks if requested
+            if test.get("verify_hooks", False):
+                hooks_assessment = assessor.assess_hooks_preserved(target)
+                extended_results["hooks"] = {
+                    "passed": hooks_assessment.passed,
+                    "checks": hooks_assessment.checks,
+                }
+                for check in hooks_assessment.checks:
+                    assessment.checks.append({
+                        **check,
+                        "name": f"hooks_{check['name']}",
+                    })
+
+            # Check MCP configuration if requested
+            if test.get("verify_mcp", False):
+                mcp_assessment = assessor.assess_mcp_config()
+                extended_results["mcp"] = {
+                    "passed": mcp_assessment.passed,
+                    "checks": mcp_assessment.checks,
+                }
+                for check in mcp_assessment.checks:
+                    assessment.checks.append({
+                        **check,
+                        "name": f"mcp_{check['name']}",
+                    })
+
+            # Check test generation if requested
+            if test.get("verify_tests", False):
+                test_assessment = assessor.assess_test_generation()
+                extended_results["tests"] = {
+                    "passed": test_assessment.passed,
+                    "checks": test_assessment.checks,
+                }
+                for check in test_assessment.checks:
+                    assessment.checks.append({
+                        **check,
+                        "name": f"test_{check['name']}",
+                    })
+
+            # Check multi-target workflow if requested
+            if test.get("verify_multi_target", False):
+                multi_assessment = assessor.assess_multi_target_workflow()
+                extended_results["multi_target"] = {
+                    "passed": multi_assessment.passed,
+                    "checks": multi_assessment.checks,
+                }
+                for check in multi_assessment.checks:
+                    assessment.checks.append({
+                        **check,
+                        "name": f"multi_{check['name']}",
+                    })
+
             return {
                 "skill": skill_name,
                 "type": "generation",
@@ -235,6 +317,7 @@ class SkillEvaluator:
                 "checks": assessment.checks,
                 "summary": assessment.summary,
                 "compilation": compilation_result,
+                "extended": extended_results,
                 "skills_installed": skills_installed,
                 "skills_invoked": skills_invoked,
                 "expected_skill_invoked": expected_skill_invoked,
@@ -326,6 +409,24 @@ class SkillEvaluator:
                 if "x-speakeasy-pagination" in expected_extensions:
                     pagination_assessment = assessor.assess_pagination_config(overlay_path)
                     for check in pagination_assessment.checks:
+                        if check["name"] not in ["overlay_exists", "valid_yaml"]:  # Already checked
+                            assessment.checks.append(check)
+                            if not check["passed"]:
+                                assessment.passed = False
+
+                # Check for retries-specific validation if retries extension expected
+                if "x-speakeasy-retries" in expected_extensions:
+                    retries_assessment = assessor.assess_retries_config(overlay_path)
+                    for check in retries_assessment.checks:
+                        if check["name"] not in ["overlay_exists", "valid_yaml"]:  # Already checked
+                            assessment.checks.append(check)
+                            if not check["passed"]:
+                                assessment.passed = False
+
+                # Check for naming-specific validation if naming extensions expected
+                if "x-speakeasy-name-override" in expected_extensions or "x-speakeasy-group" in expected_extensions:
+                    naming_assessment = assessor.assess_naming_overlay(overlay_path)
+                    for check in naming_assessment.checks:
                         if check["name"] not in ["overlay_exists", "valid_yaml"]:  # Already checked
                             assessment.checks.append(check)
                             if not check["passed"]:

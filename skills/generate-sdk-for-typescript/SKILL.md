@@ -23,10 +23,14 @@ Configure and generate TypeScript SDKs with Speakeasy, featuring Zod validation,
 
 ## Quick Start
 
+**Always use `speakeasy quickstart`** for new SDK projects:
+
 ```bash
 speakeasy quickstart --skip-interactive --output console \
   -s openapi.yaml -t typescript -n "MySDK" -p "my-sdk"
 ```
+
+> ⚠️ **Never use `speakeasy generate sdk`** - it does not create `.speakeasy/workflow.yaml`, which is required for maintainable SDK development and `speakeasy run` regeneration.
 
 ## Essential gen.yaml Configuration
 

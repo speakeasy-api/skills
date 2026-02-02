@@ -23,10 +23,14 @@ Configure and generate idiomatic Go SDKs with Speakeasy, featuring hooks, interf
 
 ## Quick Start
 
+**Always use `speakeasy quickstart`** for new SDK projects:
+
 ```bash
 speakeasy quickstart --skip-interactive --output console \
   -s openapi.yaml -t go -n "MySDK" -p "github.com/myorg/my-sdk"
 ```
+
+> ⚠️ **Never use `speakeasy generate sdk`** - it does not create `.speakeasy/workflow.yaml`, which is required for maintainable SDK development and `speakeasy run` regeneration.
 
 ## Essential gen.yaml Configuration
 

@@ -551,3 +551,618 @@ class WorkspaceAssessor:
 
         result.summary = f"{result.passed_count}/{len(result.checks)} pagination checks passed"
         return result
+
+    def assess_workflow_structure(self) -> AssessmentResult:
+        """Assess whether .speakeasy/workflow.yaml has correct structure.
+
+        This is essential for all SDK generation - the workflow file
+        controls how speakeasy run operates.
+        """
+        result = AssessmentResult(passed=True)
+
+        workflow_path = self.workspace_dir / ".speakeasy" / "workflow.yaml"
+        if not workflow_path.exists():
+            result.add_check("workflow_exists", False, ".speakeasy/workflow.yaml not found")
+            result.passed = False
+            return result
+
+        result.add_check("workflow_exists", True, ".speakeasy/workflow.yaml found")
+
+        try:
+            content = yaml.safe_load(workflow_path.read_text())
+        except yaml.YAMLError as e:
+            result.add_check("valid_yaml", False, f"Invalid YAML: {e}")
+            result.passed = False
+            return result
+
+        result.add_check("valid_yaml", True, "Valid YAML")
+
+        # Check required top-level keys
+        required_keys = ["workflowVersion", "sources", "targets"]
+        for key in required_keys:
+            has_key = key in content
+            result.add_check(
+                f"has_{key}",
+                has_key,
+                f"'{key}' {'present' if has_key else 'missing'}"
+            )
+            if not has_key:
+                result.passed = False
+
+        # Check sources structure
+        sources = content.get("sources", {})
+        if sources:
+            for source_name, source_config in sources.items():
+                has_inputs = "inputs" in source_config
+                result.add_check(
+                    f"source_{source_name}_has_inputs",
+                    has_inputs,
+                    f"Source '{source_name}' has inputs" if has_inputs else f"Source '{source_name}' missing inputs"
+                )
+                if not has_inputs:
+                    result.passed = False
+
+        # Check targets structure
+        targets = content.get("targets", {})
+        if targets:
+            for target_name, target_config in targets.items():
+                has_target = "target" in target_config
+                has_source = "source" in target_config
+                result.add_check(
+                    f"target_{target_name}_valid",
+                    has_target and has_source,
+                    f"Target '{target_name}' has target and source" if (has_target and has_source) else f"Target '{target_name}' missing target or source"
+                )
+                if not (has_target and has_source):
+                    result.passed = False
+
+        result.summary = f"{result.passed_count}/{len(result.checks)} workflow checks passed"
+        return result
+
+    def assess_gen_yaml(self, target: str) -> AssessmentResult:
+        """Assess whether gen.yaml has correct language-specific configuration.
+
+        Each language target requires specific configuration in gen.yaml.
+        """
+        result = AssessmentResult(passed=True)
+
+        # gen.yaml can be at root or in .speakeasy/
+        gen_paths = [
+            self.workspace_dir / "gen.yaml",
+            self.workspace_dir / ".speakeasy" / "gen.yaml",
+        ]
+        gen_path = None
+        for p in gen_paths:
+            if p.exists():
+                gen_path = p
+                break
+
+        if not gen_path:
+            result.add_check("gen_yaml_exists", False, "gen.yaml not found")
+            result.passed = False
+            return result
+
+        result.add_check("gen_yaml_exists", True, f"gen.yaml found at {gen_path.relative_to(self.workspace_dir)}")
+
+        try:
+            content = yaml.safe_load(gen_path.read_text())
+        except yaml.YAMLError as e:
+            result.add_check("valid_yaml", False, f"Invalid YAML: {e}")
+            result.passed = False
+            return result
+
+        result.add_check("valid_yaml", True, "Valid YAML")
+
+        # Check for language-specific section
+        lang_key = target.lower()
+        has_lang_section = lang_key in content
+        result.add_check(
+            f"has_{lang_key}_section",
+            has_lang_section,
+            f"'{lang_key}:' section {'present' if has_lang_section else 'missing'}"
+        )
+        if not has_lang_section:
+            result.passed = False
+            return result
+
+        lang_config = content[lang_key]
+
+        # Check for common required fields
+        common_fields = {
+            "typescript": ["packageName"],
+            "python": ["packageName"],
+            "go": ["packageName"],
+            "java": ["groupID", "artifactID"],
+            "csharp": ["packageName"],
+            "ruby": ["packageName"],
+            "php": ["packageName", "namespace"],
+            "terraform": ["packageName"],
+        }
+
+        required = common_fields.get(lang_key, [])
+        for field in required:
+            has_field = field in lang_config
+            result.add_check(
+                f"has_{field}",
+                has_field,
+                f"'{field}' {'present' if has_field else 'missing'} in {lang_key} config"
+            )
+            if not has_field:
+                result.passed = False
+
+        result.summary = f"{result.passed_count}/{len(result.checks)} gen.yaml checks passed"
+        return result
+
+    def assess_hooks_preserved(self, target: str) -> AssessmentResult:
+        """Assess whether SDK hooks are properly set up and would be preserved.
+
+        Hook files should be created once and never overwritten on regeneration.
+        """
+        result = AssessmentResult(passed=True)
+
+        # Language-specific hook locations
+        hook_paths = {
+            "typescript": [
+                ("registration", "src/hooks/registration.ts"),
+                ("types", "src/hooks/types.ts"),
+            ],
+            "python": [
+                ("registration", "src/hooks/registration.py"),
+            ],
+            "go": [
+                ("registration", "internal/hooks/registration.go"),
+            ],
+            "java": [
+                ("registration", "src/main/java/hooks/HookRegistration.java"),
+            ],
+            "csharp": [
+                ("registration", "Hooks/HookRegistration.cs"),
+            ],
+            "ruby": [
+                ("registration", "sdk_hooks/registration.rb"),
+            ],
+            "php": [
+                ("registration", "src/Hooks/HookRegistration.php"),
+            ],
+        }
+
+        paths = hook_paths.get(target.lower(), [])
+        if not paths:
+            result.add_check(
+                "hooks_defined",
+                False,
+                f"No hook paths defined for target: {target}"
+            )
+            # This isn't necessarily a failure - just no hooks to check
+            result.summary = "No hooks to verify for this target"
+            return result
+
+        for hook_name, rel_path in paths:
+            hook_path = self.workspace_dir / rel_path
+            exists = hook_path.exists()
+            result.add_check(
+                f"hook_{hook_name}_exists",
+                exists,
+                f"{rel_path} {'found' if exists else 'not found'}"
+            )
+            # Missing hooks don't fail the test - they're created on first gen
+            # But if they exist, they should have content
+
+            if exists:
+                content = hook_path.read_text()
+                has_content = len(content.strip()) > 0
+                result.add_check(
+                    f"hook_{hook_name}_has_content",
+                    has_content,
+                    f"{rel_path} {'has content' if has_content else 'is empty'}"
+                )
+
+        result.summary = f"{result.passed_count}/{len(result.checks)} hook checks passed"
+        return result
+
+    def assess_retries_config(self, overlay_path: Path) -> AssessmentResult:
+        """Assess whether x-speakeasy-retries is correctly configured.
+
+        Validates retry configuration structure including backoff settings.
+        """
+        result = AssessmentResult(passed=True)
+
+        if not overlay_path.exists():
+            result.add_check("overlay_exists", False, f"{overlay_path} not found")
+            result.passed = False
+            return result
+
+        try:
+            content = yaml.safe_load(overlay_path.read_text())
+        except yaml.YAMLError as e:
+            result.add_check("valid_yaml", False, f"Invalid YAML: {e}")
+            result.passed = False
+            return result
+
+        result.add_check("valid_yaml", True, "Valid YAML")
+
+        # Find retry configurations in actions
+        retry_configs = []
+        actions = content.get("actions", [])
+
+        for i, action in enumerate(actions):
+            update = action.get("update", {})
+            if "x-speakeasy-retries" in str(update):
+                if isinstance(update, dict) and "x-speakeasy-retries" in update:
+                    retry_configs.append((i, update["x-speakeasy-retries"]))
+
+        if not retry_configs:
+            result.add_check("has_retries", False, "No x-speakeasy-retries found in actions")
+            result.passed = False
+            return result
+
+        result.add_check("has_retries", True, f"Found {len(retry_configs)} retry config(s)")
+
+        # Validate each retry config
+        for action_idx, config in retry_configs:
+            prefix = f"action_{action_idx}_retries"
+
+            # Check for strategy
+            has_strategy = "strategy" in config
+            result.add_check(
+                f"{prefix}_has_strategy",
+                has_strategy,
+                f"strategy: {config.get('strategy', 'missing')}"
+            )
+            if not has_strategy:
+                result.passed = False
+
+            # Check for backoff config when strategy is backoff
+            if config.get("strategy") == "backoff":
+                has_backoff = "backoff" in config and isinstance(config["backoff"], dict)
+                result.add_check(
+                    f"{prefix}_has_backoff",
+                    has_backoff,
+                    "backoff config present" if has_backoff else "backoff config missing for backoff strategy"
+                )
+                if not has_backoff:
+                    result.passed = False
+                else:
+                    backoff = config["backoff"]
+                    # Check for common backoff fields
+                    backoff_fields = ["initialInterval", "maxInterval", "exponent"]
+                    for field in backoff_fields:
+                        has_field = field in backoff
+                        result.add_check(
+                            f"{prefix}_backoff_{field}",
+                            has_field,
+                            f"{field}: {backoff.get(field, 'missing')}"
+                        )
+
+            # Check for statusCodes
+            has_status_codes = "statusCodes" in config
+            result.add_check(
+                f"{prefix}_has_statusCodes",
+                has_status_codes,
+                f"statusCodes: {config.get('statusCodes', 'missing')}"
+            )
+
+        result.summary = f"{result.passed_count}/{len(result.checks)} retry checks passed"
+        return result
+
+    def assess_terraform_annotations(self, spec_path: Path) -> AssessmentResult:
+        """Assess whether OpenAPI spec has correct Terraform entity annotations.
+
+        Terraform providers require x-speakeasy-entity and x-speakeasy-entity-operation.
+        """
+        result = AssessmentResult(passed=True)
+
+        if not spec_path.exists():
+            result.add_check("spec_exists", False, f"{spec_path} not found")
+            result.passed = False
+            return result
+
+        try:
+            content = yaml.safe_load(spec_path.read_text())
+        except yaml.YAMLError as e:
+            result.add_check("valid_yaml", False, f"Invalid YAML: {e}")
+            result.passed = False
+            return result
+
+        result.add_check("valid_yaml", True, "Valid YAML")
+
+        # Check for entity annotations in schemas
+        schemas = content.get("components", {}).get("schemas", {})
+        entities_found = []
+        for schema_name, schema_def in schemas.items():
+            if "x-speakeasy-entity" in schema_def:
+                entities_found.append(schema_name)
+
+        has_entities = len(entities_found) > 0
+        result.add_check(
+            "has_entity_annotations",
+            has_entities,
+            f"Found {len(entities_found)} schemas with x-speakeasy-entity: {entities_found}" if has_entities else "No x-speakeasy-entity annotations found"
+        )
+        if not has_entities:
+            result.passed = False
+
+        # Check for entity-operation annotations in paths
+        paths = content.get("paths", {})
+        operations_found = []
+        crud_mapping = {"create": 0, "read": 0, "update": 0, "delete": 0}
+
+        for path, path_item in paths.items():
+            for method in ["get", "post", "put", "patch", "delete"]:
+                if method in path_item:
+                    operation = path_item[method]
+                    if "x-speakeasy-entity-operation" in operation:
+                        op_value = operation["x-speakeasy-entity-operation"]
+                        operations_found.append(f"{method.upper()} {path}: {op_value}")
+                        # Parse CRUD type
+                        if "#" in str(op_value):
+                            crud_type = str(op_value).split("#")[-1]
+                            if crud_type in crud_mapping:
+                                crud_mapping[crud_type] += 1
+
+        has_operations = len(operations_found) > 0
+        result.add_check(
+            "has_entity_operation_annotations",
+            has_operations,
+            f"Found {len(operations_found)} operations with x-speakeasy-entity-operation" if has_operations else "No x-speakeasy-entity-operation annotations found"
+        )
+        if not has_operations:
+            result.passed = False
+
+        # Check CRUD coverage
+        for crud_type, count in crud_mapping.items():
+            has_crud = count > 0
+            result.add_check(
+                f"has_{crud_type}_operation",
+                has_crud,
+                f"{crud_type}: {count} operations" if has_crud else f"No {crud_type} operations found"
+            )
+            # Not all CRUD operations are required, so don't fail
+
+        result.summary = f"{result.passed_count}/{len(result.checks)} Terraform annotation checks passed"
+        return result
+
+    def assess_mcp_config(self) -> AssessmentResult:
+        """Assess whether MCP server generation is properly configured.
+
+        Checks for enableMCPServer in gen.yaml and scopes overlay.
+        """
+        result = AssessmentResult(passed=True)
+
+        # Check gen.yaml for enableMCPServer
+        gen_paths = [
+            self.workspace_dir / "gen.yaml",
+            self.workspace_dir / ".speakeasy" / "gen.yaml",
+        ]
+        gen_path = None
+        for p in gen_paths:
+            if p.exists():
+                gen_path = p
+                break
+
+        if not gen_path:
+            result.add_check("gen_yaml_exists", False, "gen.yaml not found")
+            result.passed = False
+            return result
+
+        try:
+            content = yaml.safe_load(gen_path.read_text())
+        except yaml.YAMLError as e:
+            result.add_check("valid_yaml", False, f"Invalid YAML: {e}")
+            result.passed = False
+            return result
+
+        result.add_check("valid_yaml", True, "Valid YAML")
+
+        # Check for MCP enabled in typescript config
+        ts_config = content.get("typescript", {})
+        mcp_enabled = ts_config.get("enableMCPServer", False)
+        result.add_check(
+            "mcp_enabled",
+            mcp_enabled,
+            "enableMCPServer: true" if mcp_enabled else "enableMCPServer not set or false"
+        )
+        if not mcp_enabled:
+            result.passed = False
+
+        # Check for MCP scopes overlay
+        scopes_overlay = self.workspace_dir / "mcp-scopes-overlay.yaml"
+        has_scopes = scopes_overlay.exists()
+        result.add_check(
+            "mcp_scopes_overlay_exists",
+            has_scopes,
+            "mcp-scopes-overlay.yaml found" if has_scopes else "mcp-scopes-overlay.yaml not found (optional)"
+        )
+        # Scopes overlay is optional, don't fail if missing
+
+        # Check for MCP server directory
+        mcp_dir = self.workspace_dir / "src" / "mcp-server"
+        has_mcp_dir = mcp_dir.is_dir()
+        result.add_check(
+            "mcp_server_dir_exists",
+            has_mcp_dir,
+            "src/mcp-server/ directory found" if has_mcp_dir else "src/mcp-server/ directory not found"
+        )
+
+        result.summary = f"{result.passed_count}/{len(result.checks)} MCP config checks passed"
+        return result
+
+    def assess_test_generation(self) -> AssessmentResult:
+        """Assess whether SDK test generation is properly configured.
+
+        Checks for generateTests in gen.yaml and tests directory.
+        """
+        result = AssessmentResult(passed=True)
+
+        # Check gen.yaml for generateTests
+        gen_paths = [
+            self.workspace_dir / "gen.yaml",
+            self.workspace_dir / ".speakeasy" / "gen.yaml",
+        ]
+        gen_path = None
+        for p in gen_paths:
+            if p.exists():
+                gen_path = p
+                break
+
+        if not gen_path:
+            result.add_check("gen_yaml_exists", False, "gen.yaml not found")
+            result.passed = False
+            return result
+
+        try:
+            content = yaml.safe_load(gen_path.read_text())
+        except yaml.YAMLError as e:
+            result.add_check("valid_yaml", False, f"Invalid YAML: {e}")
+            result.passed = False
+            return result
+
+        result.add_check("valid_yaml", True, "Valid YAML")
+
+        # Check for tests.generateTests
+        tests_config = content.get("tests", {})
+        generate_tests = tests_config.get("generateTests", False)
+        result.add_check(
+            "generate_tests_enabled",
+            generate_tests,
+            "tests.generateTests: true" if generate_tests else "tests.generateTests not enabled"
+        )
+
+        # Check for tests directory
+        tests_dir = self.workspace_dir / "tests"
+        has_tests_dir = tests_dir.is_dir()
+        result.add_check(
+            "tests_dir_exists",
+            has_tests_dir,
+            "tests/ directory found" if has_tests_dir else "tests/ directory not found"
+        )
+
+        # Check for custom Arazzo tests
+        arazzo_path = self.workspace_dir / ".speakeasy" / "tests.arazzo.yaml"
+        has_arazzo = arazzo_path.exists()
+        result.add_check(
+            "arazzo_tests_exist",
+            has_arazzo,
+            ".speakeasy/tests.arazzo.yaml found" if has_arazzo else ".speakeasy/tests.arazzo.yaml not found (optional)"
+        )
+        # Arazzo is optional
+
+        result.summary = f"{result.passed_count}/{len(result.checks)} test generation checks passed"
+        return result
+
+    def assess_multi_target_workflow(self) -> AssessmentResult:
+        """Assess whether workflow.yaml is configured for multi-target generation.
+
+        Multi-target workflows have multiple sources and/or targets.
+        """
+        result = AssessmentResult(passed=True)
+
+        workflow_path = self.workspace_dir / ".speakeasy" / "workflow.yaml"
+        if not workflow_path.exists():
+            result.add_check("workflow_exists", False, ".speakeasy/workflow.yaml not found")
+            result.passed = False
+            return result
+
+        try:
+            content = yaml.safe_load(workflow_path.read_text())
+        except yaml.YAMLError as e:
+            result.add_check("valid_yaml", False, f"Invalid YAML: {e}")
+            result.passed = False
+            return result
+
+        result.add_check("valid_yaml", True, "Valid YAML")
+
+        # Count sources
+        sources = content.get("sources", {})
+        source_count = len(sources)
+        result.add_check(
+            "sources_count",
+            source_count >= 1,
+            f"Found {source_count} source(s): {list(sources.keys())}"
+        )
+
+        # Count targets
+        targets = content.get("targets", {})
+        target_count = len(targets)
+        is_multi_target = target_count > 1
+        result.add_check(
+            "is_multi_target",
+            is_multi_target,
+            f"Found {target_count} target(s): {list(targets.keys())}" + (" (multi-target)" if is_multi_target else " (single-target)")
+        )
+
+        # Check each target has unique output
+        if is_multi_target:
+            outputs = []
+            for target_name, target_config in targets.items():
+                output = target_config.get("output", "./")
+                outputs.append(output)
+                result.add_check(
+                    f"target_{target_name}_output",
+                    True,
+                    f"Output: {output}"
+                )
+
+            # Check outputs are unique
+            unique_outputs = len(set(outputs)) == len(outputs)
+            result.add_check(
+                "unique_outputs",
+                unique_outputs,
+                "All targets have unique output paths" if unique_outputs else f"Duplicate output paths found: {outputs}"
+            )
+            if not unique_outputs:
+                result.passed = False
+
+        result.summary = f"{result.passed_count}/{len(result.checks)} multi-target checks passed"
+        return result
+
+    def assess_naming_overlay(self, overlay_path: Path) -> AssessmentResult:
+        """Assess whether a naming overlay has correct structure.
+
+        Checks for x-speakeasy-name-override and x-speakeasy-group extensions.
+        """
+        result = AssessmentResult(passed=True)
+
+        if not overlay_path.exists():
+            result.add_check("overlay_exists", False, f"{overlay_path} not found")
+            result.passed = False
+            return result
+
+        try:
+            content = yaml.safe_load(overlay_path.read_text())
+        except yaml.YAMLError as e:
+            result.add_check("valid_yaml", False, f"Invalid YAML: {e}")
+            result.passed = False
+            return result
+
+        result.add_check("valid_yaml", True, "Valid YAML")
+
+        actions = content.get("actions", [])
+        name_overrides = 0
+        groups = 0
+
+        for action in actions:
+            update = action.get("update", {})
+            if isinstance(update, dict):
+                if "x-speakeasy-name-override" in update:
+                    name_overrides += 1
+                if "x-speakeasy-group" in update:
+                    groups += 1
+
+        has_naming = name_overrides > 0 or groups > 0
+        result.add_check(
+            "has_naming_extensions",
+            has_naming,
+            f"Found {name_overrides} name-override(s), {groups} group(s)" if has_naming else "No naming extensions found"
+        )
+        if not has_naming:
+            result.passed = False
+
+        if name_overrides > 0:
+            result.add_check("has_name_overrides", True, f"{name_overrides} x-speakeasy-name-override(s)")
+
+        if groups > 0:
+            result.add_check("has_groups", True, f"{groups} x-speakeasy-group(s)")
+
+        result.summary = f"{result.passed_count}/{len(result.checks)} naming overlay checks passed"
+        return result

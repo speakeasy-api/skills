@@ -1,6 +1,6 @@
 # Overlay Creation Tests
 # These tests verify that skills guide proper overlay creation
-# Phase 1: Includes overlay validation and semantic checks
+# Phase 1: Includes overlay validation, semantic checks, and CLI validation
 
 tests:
   - name: fix-poor-naming-with-overlay
@@ -14,6 +14,7 @@ tests:
     expected_extensions:
       - x-speakeasy-name-override
       - x-speakeasy-group
+    # Will run semantic validation for naming overlay structure
 
   - name: add-offset-pagination-to-products
     skill: configure-speakeasy-extensions
@@ -25,7 +26,7 @@ tests:
       x-speakeasy-pagination so the SDK can auto-paginate through all products.
     expected_extensions:
       - x-speakeasy-pagination
-    # Semantic validation will check for type: offsetLimit, inputs, outputs
+    # Semantic validation checks for type: offsetLimit, inputs, outputs
 
   - name: add-cursor-pagination-to-orders
     skill: configure-speakeasy-extensions
@@ -37,7 +38,7 @@ tests:
       Create an overlay to add x-speakeasy-pagination for cursor-based iteration.
     expected_extensions:
       - x-speakeasy-pagination
-    # Semantic validation will check for type: cursor, nextCursor output
+    # Semantic validation checks for type: cursor, nextCursor output
 
   - name: add-retry-configuration
     skill: configure-speakeasy-extensions
@@ -50,6 +51,7 @@ tests:
       - x-speakeasy-retries
       - backoff
       - "5XX"
+    # Semantic validation checks for strategy, backoff config, statusCodes
 
   - name: add-open-enums
     skill: configure-speakeasy-extensions
@@ -61,3 +63,26 @@ tests:
     expected_extensions:
       - x-speakeasy-unknown-values
       - allow
+
+  - name: add-server-url-override
+    skill: configure-speakeasy-extensions
+    type: overlay
+    spec_file: fixtures/petstore-minimal.yaml
+    task: |
+      Create an overlay to customize the server URLs in the SDK.
+      Add both a production and staging server with appropriate descriptions.
+    expected_extensions:
+      - servers
+      - url
+      - description
+
+  - name: add-deprecation-notices
+    skill: configure-speakeasy-extensions
+    type: overlay
+    spec_file: fixtures/petstore-minimal.yaml
+    task: |
+      Create an overlay to mark certain operations as deprecated.
+      Add x-speakeasy-deprecation-message with a migration notice.
+    expected_extensions:
+      - deprecated
+      - x-speakeasy-deprecation-message

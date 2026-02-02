@@ -1,6 +1,6 @@
 # SDK Generation Tests
 # These tests verify that skills guide successful SDK generation
-# Phase 1: Includes SDK compilation verification
+# Phase 1: Includes SDK compilation, workflow structure, and gen.yaml verification
 
 tests:
   - name: typescript-sdk-from-clean-spec
@@ -9,6 +9,8 @@ tests:
     target: typescript
     spec_file: fixtures/petstore-minimal.yaml
     verify_compilation: true  # Will run npm install && npm run build
+    verify_workflow: true     # Validates .speakeasy/workflow.yaml structure
+    verify_gen_yaml: true     # Validates language-specific gen.yaml config
     task: |
       Generate a TypeScript SDK from the OpenAPI spec.
       Use speakeasy quickstart with appropriate naming.
@@ -19,6 +21,8 @@ tests:
     target: python
     spec_file: fixtures/petstore-minimal.yaml
     verify_compilation: true  # Will verify package structure
+    verify_workflow: true
+    verify_gen_yaml: true
     task: |
       Generate a Python SDK from the OpenAPI spec.
       Use speakeasy quickstart with appropriate naming.
@@ -29,6 +33,8 @@ tests:
     target: go
     spec_file: fixtures/petstore-minimal.yaml
     verify_compilation: true  # Will run go build ./...
+    verify_workflow: true
+    verify_gen_yaml: true
     task: |
       Generate a Go SDK from the OpenAPI spec.
       Use speakeasy quickstart with appropriate naming.
@@ -39,7 +45,47 @@ tests:
     target: typescript
     spec_file: fixtures/paginated-api.yaml
     verify_compilation: true
+    verify_workflow: true
+    verify_gen_yaml: true
     task: |
       Generate a TypeScript SDK from this paginated API spec.
       First add x-speakeasy-pagination extensions for the list endpoints,
       then generate the SDK. The SDK should have pagination support built-in.
+
+  - name: typescript-sdk-with-hooks
+    skill: customize-sdk-hooks
+    type: generation
+    target: typescript
+    spec_file: fixtures/petstore-minimal.yaml
+    verify_compilation: true
+    verify_workflow: true
+    verify_gen_yaml: true
+    verify_hooks: true  # Validates hook file presence
+    task: |
+      Generate a TypeScript SDK and set up custom hooks.
+      Create a beforeRequest hook that adds a custom header.
+
+  - name: typescript-sdk-with-mcp
+    skill: generate-mcp-server
+    type: generation
+    target: typescript
+    spec_file: fixtures/petstore-minimal.yaml
+    verify_compilation: true
+    verify_workflow: true
+    verify_gen_yaml: true
+    verify_mcp: true  # Validates MCP server configuration
+    task: |
+      Generate a TypeScript SDK with MCP server support.
+      Enable MCP server generation in the configuration.
+
+  - name: multi-target-sdk-generation
+    skill: generate-multi-target-sdk
+    type: generation
+    target: typescript  # Primary target for compilation check
+    spec_file: fixtures/petstore-minimal.yaml
+    verify_compilation: true
+    verify_workflow: true
+    verify_multi_target: true  # Validates multi-target workflow
+    task: |
+      Generate SDKs for multiple targets (TypeScript and Python).
+      Configure the workflow.yaml for multi-target generation.

@@ -1,5 +1,6 @@
 # End-to-End Workflow Tests
 # These tests verify complete SDK generation workflows
+# Phase 1: Validates workflow structure and multi-step operations
 
 tests:
   - name: full-typescript-workflow
@@ -34,3 +35,37 @@ tests:
         command: speakeasy lint
       - name: suggest-names
         command: speakeasy suggest
+
+  - name: lint-fix-generate-workflow
+    skill: diagnose-generation-failure
+    type: workflow
+    spec_file: fixtures/petstore-poor-naming.yaml
+    task: |
+      Follow the complete workflow to improve and generate an SDK:
+      1. Run speakeasy lint to identify issues
+      2. Create an overlay to fix the issues
+      3. Generate the SDK with the fixes applied
+    steps:
+      - name: lint-spec
+        command: speakeasy lint
+      - name: create-overlay
+        creates_file: overlay.yaml
+      - name: generate-sdk
+        command: speakeasy quickstart
+
+  - name: multi-spec-merge-workflow
+    skill: merge-openapi-specs
+    type: workflow
+    spec_file: fixtures/petstore-minimal.yaml
+    task: |
+      Merge multiple OpenAPI specs and generate a unified SDK:
+      1. Validate both input specs with lint
+      2. Merge the specs using speakeasy merge
+      3. Generate the SDK from the merged spec
+    steps:
+      - name: lint-first-spec
+        command: speakeasy lint
+      - name: merge-specs
+        command: speakeasy merge
+      - name: generate-sdk
+        command: speakeasy run
