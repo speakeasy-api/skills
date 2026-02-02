@@ -1,0 +1,46 @@
+# Completeness tests: verify all required steps are performed
+
+tests:
+  - skill: generate-terraform-provider
+    prompt: "Set up a new Terraform provider for my Petstore API"
+    required_steps:
+      - "Add x-speakeasy-entity to schemas"
+      - "Add x-speakeasy-entity-operation to CRUD endpoints"
+      - "Run speakeasy quickstart with terraform target"
+      - "Build with go build"
+    optional_steps:
+      - "Configure GPG signing"
+      - "Set up release workflow"
+
+  - skill: configure-speakeasy-extensions
+    prompt: "Make all enums in my spec open and add global retry configuration"
+    required_steps:
+      - "Create overlay file"
+      - "Add x-speakeasy-unknown-values for enums"
+      - "Add x-speakeasy-retries globally"
+      - "Add overlay to workflow.yaml"
+
+  - skill: extract-openapi-fastapi
+    prompt: "Extract OpenAPI from my FastAPI app and prepare it for SDK generation"
+    required_steps:
+      - "Import app and call app.openapi()"
+      - "Save to openapi.json"
+      - "Run speakeasy lint"
+      - "Fix any issues with overlay or code changes"
+
+  - skill: manage-openapi-overlays
+    prompt: "Create an overlay to improve SDK method names and add retry configuration"
+    required_steps:
+      - "Create overlay with version 1.0.0"
+      - "Add actions with JSONPath targets"
+      - "Add x-speakeasy-name-override"
+      - "Add x-speakeasy-group"
+      - "Validate with speakeasy overlay validate"
+
+  - skill: generate-sdk-for-typescript
+    prompt: "Configure a TypeScript SDK with Zod validation and publish to npm"
+    required_steps:
+      - "Configure gen.yaml for TypeScript"
+      - "Enable Zod validation"
+      - "Set package name"
+      - "Configure npm publishing"
