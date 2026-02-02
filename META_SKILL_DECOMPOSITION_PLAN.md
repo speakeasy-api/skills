@@ -50,12 +50,24 @@ The meta skill (`sdk-tf-generation-best-practices`) acts as a routing hub that d
 | Multi-repo workflows | ✓ Created `orchestrate-multi-repo-sdks` |
 | Terraform publishing | ✓ Enhanced `generate-terraform-provider` |
 
-### Phase 3: Meta Skill Removal
+### Phase 3: Remaining Content (Future Work)
 
-Once all content is distributed:
+Content still in meta skill that needs distribution:
+
+| Content Directory | Files | Target Skill |
+|-------------------|-------|--------------|
+| `code-first/` | 8 framework guides (FastAPI, Django, Flask, NestJS, Hono, Laravel, Rails, Spring Boot) | Enhance `extract-openapi-from-code` |
+| `terraform/` | CRUD mapping, customization, testing | Enhance `generate-terraform-provider` |
+| `sdk-testing/` | Arazzo, contract, integration testing | Enhance `setup-sdk-testing` |
+| `spec-first/` | Pagination, schemas, security schemes, validation | Enhance `writing-openapi-specs` or create new skills |
+| `plans/` | SDK generation, TF provider generation plans | Keep as reference or embed in relevant skills |
+
+### Phase 4: Meta Skill Removal
+
+Once Phase 3 is complete:
 1. Verify all trigger phrases are covered by granular skills
-2. Update meta skill description to be a pure router
-3. Eventually deprecate or remove meta skill
+2. Move any remaining reference content to a docs location
+3. Remove the meta skill
 
 ## Skill Trigger Coverage
 
@@ -107,4 +119,8 @@ This approach keeps skills under 150 lines while detailed content remains availa
 | Multi-target skill | ✓ Created (Phase 2) |
 | Multi-repo skill | ✓ Created (Phase 2) |
 | Terraform publishing enhanced | ✓ Added to generate-terraform-provider (Phase 2) |
-| Meta skill removal | Pending (Phase 3) |
+| Code-first content | Pending (Phase 3) |
+| Terraform content | Pending (Phase 3) |
+| SDK testing content | Pending (Phase 3) |
+| Spec-first content | Pending (Phase 3) |
+| Meta skill removal | Pending (Phase 4) |
