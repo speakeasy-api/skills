@@ -142,6 +142,37 @@ class SkillEvaluator:
                     skills.append(skill_name)
         return skills
 
+    def _find_sdk_dir(self, workspace_dir: Path, target: str) -> Path | None:
+        """Find the SDK output directory in a workspace."""
+        # Check common SDK output patterns
+        sdk_patterns = [
+            f"sdk/{target}",
+            f"sdks/{target}",
+            target,
+            "sdk",
+        ]
+        for pattern in sdk_patterns:
+            candidate = workspace_dir / pattern
+            if candidate.is_dir():
+                return candidate
+
+        # Check if SDK was generated at workspace root (common for quickstart)
+        gen_yaml = workspace_dir / ".speakeasy" / "gen.yaml"
+        if gen_yaml.exists():
+            # Check for language-specific indicators at root
+            indicators = {
+                "typescript": ["package.json", "src"],
+                "python": ["pyproject.toml", "setup.py", "src"],
+                "go": ["go.mod"],
+                "java": ["pom.xml", "build.gradle"],
+                "terraform": ["go.mod"],
+            }
+            for indicator in indicators.get(target, []):
+                if (workspace_dir / indicator).exists():
+                    return workspace_dir
+
+        return None
+
     async def _eval_generation(self, test: dict[str, Any]) -> dict[str, Any]:
         """Evaluate SDK generation with skill-guided agent."""
         skill_name = test["skill"]  # The skill we expect to be used
@@ -176,6 +207,26 @@ class SkillEvaluator:
             assessor = WorkspaceAssessor(workspace.base_dir)
             assessment = assessor.assess_generation(target)
 
+            # Phase 1: Add SDK compilation check if generation passed basic checks
+            compilation_result = None
+            if assessment.passed and test.get("verify_compilation", True):
+                # Find the SDK directory for compilation
+                sdk_dir = self._find_sdk_dir(workspace.base_dir, target)
+                if sdk_dir:
+                    compilation = assessor.assess_sdk_compilation(sdk_dir, target)
+                    compilation_result = {
+                        "passed": compilation.passed,
+                        "checks": compilation.checks,
+                        "summary": compilation.summary,
+                    }
+                    # Compilation failure doesn't fail the whole test by default
+                    # but is tracked separately for trend analysis
+                    for check in compilation.checks:
+                        assessment.checks.append({
+                            **check,
+                            "name": f"compile_{check['name']}",
+                        })
+
             return {
                 "skill": skill_name,
                 "type": "generation",
@@ -183,6 +234,7 @@ class SkillEvaluator:
                 "passed": assessment.passed,
                 "checks": assessment.checks,
                 "summary": assessment.summary,
+                "compilation": compilation_result,
                 "skills_installed": skills_installed,
                 "skills_invoked": skills_invoked,
                 "expected_skill_invoked": expected_skill_invoked,
@@ -247,6 +299,8 @@ class SkillEvaluator:
             all_passed = True
             overlay_results = []
 
+            spec_path = workspace.base_dir / "openapi.yaml"
+
             for overlay_file in overlay_files:
                 overlay_path = workspace.base_dir / overlay_file
                 assessment = assessor.assess_overlay(overlay_path)
@@ -259,6 +313,23 @@ class SkillEvaluator:
                         assessment.add_check(f"has_{ext}", found, f"{ext} {'found' if found else 'not found'}")
                         if not found:
                             assessment.passed = False
+
+                # Phase 1: Run speakeasy overlay validate
+                validation = assessor.assess_overlay_validation(overlay_path, spec_path)
+                for check in validation.checks:
+                    if check["name"] != "overlay_exists":  # Already checked
+                        assessment.checks.append(check)
+                        if not check["passed"]:
+                            assessment.passed = False
+
+                # Check for pagination-specific validation if pagination extension expected
+                if "x-speakeasy-pagination" in expected_extensions:
+                    pagination_assessment = assessor.assess_pagination_config(overlay_path)
+                    for check in pagination_assessment.checks:
+                        if check["name"] not in ["overlay_exists", "valid_yaml"]:  # Already checked
+                            assessment.checks.append(check)
+                            if not check["passed"]:
+                                assessment.passed = False
 
                 overlay_results.append({
                     "file": overlay_file,

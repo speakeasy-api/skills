@@ -1,5 +1,6 @@
 # SDK Generation Tests
 # These tests verify that skills guide successful SDK generation
+# Phase 1: Includes SDK compilation verification
 
 tests:
   - name: typescript-sdk-from-clean-spec
@@ -7,6 +8,7 @@ tests:
     type: generation
     target: typescript
     spec_file: fixtures/petstore-minimal.yaml
+    verify_compilation: true  # Will run npm install && npm run build
     task: |
       Generate a TypeScript SDK from the OpenAPI spec.
       Use speakeasy quickstart with appropriate naming.
@@ -16,6 +18,7 @@ tests:
     type: generation
     target: python
     spec_file: fixtures/petstore-minimal.yaml
+    verify_compilation: true  # Will verify package structure
     task: |
       Generate a Python SDK from the OpenAPI spec.
       Use speakeasy quickstart with appropriate naming.
@@ -25,6 +28,18 @@ tests:
     type: generation
     target: go
     spec_file: fixtures/petstore-minimal.yaml
+    verify_compilation: true  # Will run go build ./...
     task: |
       Generate a Go SDK from the OpenAPI spec.
       Use speakeasy quickstart with appropriate naming.
+
+  - name: typescript-sdk-with-pagination
+    skill: configure-speakeasy-extensions
+    type: generation
+    target: typescript
+    spec_file: fixtures/paginated-api.yaml
+    verify_compilation: true
+    task: |
+      Generate a TypeScript SDK from this paginated API spec.
+      First add x-speakeasy-pagination extensions for the list endpoints,
+      then generate the SDK. The SDK should have pagination support built-in.

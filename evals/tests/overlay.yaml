@@ -1,5 +1,6 @@
 # Overlay Creation Tests
 # These tests verify that skills guide proper overlay creation
+# Phase 1: Includes overlay validation and semantic checks
 
 tests:
   - name: fix-poor-naming-with-overlay
@@ -14,15 +15,29 @@ tests:
       - x-speakeasy-name-override
       - x-speakeasy-group
 
-  - name: add-pagination-extensions
+  - name: add-offset-pagination-to-products
     skill: configure-speakeasy-extensions
     type: overlay
     spec_file: fixtures/paginated-api.yaml
     task: |
-      The API has paginated endpoints. Create an overlay to add x-speakeasy-pagination
-      extensions to enable automatic pagination in the SDK.
+      The /products endpoint uses offset/limit pagination (offset and limit query params).
+      The response has 'items' array and 'total' count. Create an overlay to add
+      x-speakeasy-pagination so the SDK can auto-paginate through all products.
     expected_extensions:
       - x-speakeasy-pagination
+    # Semantic validation will check for type: offsetLimit, inputs, outputs
+
+  - name: add-cursor-pagination-to-orders
+    skill: configure-speakeasy-extensions
+    type: overlay
+    spec_file: fixtures/paginated-api.yaml
+    task: |
+      The /orders endpoint uses cursor-based pagination. It takes a 'cursor' query param
+      and returns 'next_cursor' in the response along with 'has_more' boolean.
+      Create an overlay to add x-speakeasy-pagination for cursor-based iteration.
+    expected_extensions:
+      - x-speakeasy-pagination
+    # Semantic validation will check for type: cursor, nextCursor output
 
   - name: add-retry-configuration
     skill: configure-speakeasy-extensions
@@ -30,6 +45,19 @@ tests:
     spec_file: fixtures/petstore-minimal.yaml
     task: |
       Create an overlay to add x-speakeasy-retries configuration with exponential backoff
-      for 5XX errors and 429 rate limits.
+      for 5XX errors and 429 rate limits. Use sensible defaults for intervals.
     expected_extensions:
       - x-speakeasy-retries
+      - backoff
+      - "5XX"
+
+  - name: add-open-enums
+    skill: configure-speakeasy-extensions
+    type: overlay
+    spec_file: fixtures/petstore-minimal.yaml
+    task: |
+      Create an overlay to make all enums in the spec "open" using x-speakeasy-unknown-values
+      so the SDK handles unknown enum values gracefully without breaking.
+    expected_extensions:
+      - x-speakeasy-unknown-values
+      - allow

@@ -1,6 +1,7 @@
 """State assessment for evaluating SDK generation outcomes."""
 
 import re
+import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -68,10 +69,17 @@ class WorkspaceAssessor:
         if sdk_dir is None:
             # Check for .speakeasy/gen.yaml which indicates SDK generation happened
             gen_yaml = self.workspace_dir / ".speakeasy" / "gen.yaml"
-            # Check for src/ directory at root level
-            src_dir = self.workspace_dir / "src"
-            if gen_yaml.exists() and src_dir.is_dir():
-                sdk_dir = self.workspace_dir  # SDK was generated at root
+            if gen_yaml.exists():
+                # Check for language-specific indicators at workspace root
+                # Python/TypeScript: src/ directory
+                # Go: go.mod file
+                # Java: pom.xml or build.gradle
+                src_dir = self.workspace_dir / "src"
+                go_mod = self.workspace_dir / "go.mod"
+                pyproject = self.workspace_dir / "pyproject.toml"
+                package_json = self.workspace_dir / "package.json"
+                if src_dir.is_dir() or go_mod.exists() or pyproject.exists() or package_json.exists():
+                    sdk_dir = self.workspace_dir  # SDK was generated at root
 
         sdk_dir_exists = sdk_dir is not None
         result.add_check(
@@ -280,4 +288,266 @@ class WorkspaceAssessor:
                     result.passed = False
 
         result.summary = f"{result.passed_count}/{len(result.checks)} naming checks passed"
+        return result
+
+    def assess_sdk_compilation(self, sdk_dir: Path, target: str) -> AssessmentResult:
+        """Assess whether the generated SDK compiles successfully.
+
+        This is a Phase 1 assertion that verifies functional correctness
+        beyond just file existence.
+        """
+        result = AssessmentResult(passed=True)
+
+        # Language-specific build commands
+        build_commands: dict[str, list[tuple[str, list[str]]]] = {
+            "typescript": [
+                ("install_deps", ["npm", "install"]),
+                ("compile", ["npm", "run", "build"]),
+            ],
+            "python": [
+                # Use pip install in editable mode to verify package is valid
+                ("install_check", ["pip", "install", "-e", ".", "--dry-run"]),
+            ],
+            "go": [
+                ("compile", ["go", "build", "./..."]),
+            ],
+            "java": [
+                ("compile_maven", ["mvn", "compile", "-q"]),
+            ],
+            "terraform": [
+                ("compile", ["go", "build", "./..."]),
+            ],
+        }
+
+        commands = build_commands.get(target, [])
+        if not commands:
+            result.add_check(
+                "build_commands_available",
+                False,
+                f"No build commands defined for target: {target}"
+            )
+            result.passed = False
+            return result
+
+        result.add_check("build_commands_available", True, f"Build commands defined for {target}")
+
+        for step_name, cmd in commands:
+            try:
+                proc = subprocess.run(
+                    cmd,
+                    cwd=sdk_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,  # 2 minute timeout per step
+                )
+                success = proc.returncode == 0
+                details = f"exit code {proc.returncode}"
+                if not success and proc.stderr:
+                    # Truncate error output for readability
+                    error_preview = proc.stderr[:200].replace('\n', ' ')
+                    details += f": {error_preview}..."
+
+                result.add_check(f"build_{step_name}", success, details)
+                if not success:
+                    result.passed = False
+                    # Don't continue if a step fails
+                    break
+
+            except subprocess.TimeoutExpired:
+                result.add_check(f"build_{step_name}", False, "timed out after 120s")
+                result.passed = False
+                break
+            except FileNotFoundError as e:
+                result.add_check(f"build_{step_name}", False, f"command not found: {e}")
+                result.passed = False
+                break
+            except Exception as e:
+                result.add_check(f"build_{step_name}", False, f"error: {e}")
+                result.passed = False
+                break
+
+        result.summary = f"{result.passed_count}/{len(result.checks)} build checks passed"
+        return result
+
+    def assess_command_success(self, command: list[str], cwd: Path | None = None) -> AssessmentResult:
+        """Assess whether a command executes successfully.
+
+        Useful for running validation commands like:
+        - speakeasy overlay validate -o overlay.yaml
+        - speakeasy lint openapi -s spec.yaml
+        """
+        result = AssessmentResult(passed=True)
+        work_dir = cwd or self.workspace_dir
+
+        cmd_str = " ".join(command)
+        try:
+            proc = subprocess.run(
+                command,
+                cwd=work_dir,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            success = proc.returncode == 0
+            details = f"exit code {proc.returncode}"
+            if not success:
+                # Include stderr for debugging
+                if proc.stderr:
+                    error_preview = proc.stderr[:300].replace('\n', ' ')
+                    details += f": {error_preview}"
+                elif proc.stdout:
+                    output_preview = proc.stdout[:300].replace('\n', ' ')
+                    details += f": {output_preview}"
+
+            result.add_check(f"command_success", success, details)
+            result.passed = success
+
+            # Store full output for potential further analysis
+            result.checks[-1]["stdout"] = proc.stdout
+            result.checks[-1]["stderr"] = proc.stderr
+
+        except subprocess.TimeoutExpired:
+            result.add_check("command_success", False, f"timed out after 60s: {cmd_str}")
+            result.passed = False
+        except FileNotFoundError:
+            result.add_check("command_success", False, f"command not found: {command[0]}")
+            result.passed = False
+        except Exception as e:
+            result.add_check("command_success", False, f"error running '{cmd_str}': {e}")
+            result.passed = False
+
+        result.summary = f"Command {'succeeded' if result.passed else 'failed'}: {cmd_str}"
+        return result
+
+    def assess_overlay_validation(self, overlay_path: Path, spec_path: Path | None = None) -> AssessmentResult:
+        """Assess whether an overlay passes speakeasy validation.
+
+        This runs `speakeasy overlay validate` to check the overlay is valid
+        and can be applied to a spec.
+        """
+        result = AssessmentResult(passed=True)
+
+        if not overlay_path.exists():
+            result.add_check("overlay_exists", False, f"{overlay_path} not found")
+            result.passed = False
+            return result
+
+        result.add_check("overlay_exists", True, f"{overlay_path.name} found")
+
+        # Run speakeasy overlay validate
+        cmd = ["speakeasy", "overlay", "validate", "-o", str(overlay_path)]
+        if spec_path and spec_path.exists():
+            cmd.extend(["-s", str(spec_path)])
+
+        validation_result = self.assess_command_success(cmd, cwd=overlay_path.parent)
+
+        # Merge results
+        for check in validation_result.checks:
+            check["name"] = f"speakeasy_validate_{check['name']}"
+            result.checks.append(check)
+            if not check["passed"]:
+                result.passed = False
+
+        result.summary = f"Overlay validation {'passed' if result.passed else 'failed'}"
+        return result
+
+    def assess_pagination_config(self, overlay_path: Path) -> AssessmentResult:
+        """Assess whether x-speakeasy-pagination is correctly configured.
+
+        Validates the semantic structure of pagination extensions,
+        not just their presence.
+        """
+        result = AssessmentResult(passed=True)
+
+        if not overlay_path.exists():
+            result.add_check("overlay_exists", False, f"{overlay_path} not found")
+            result.passed = False
+            return result
+
+        try:
+            content = yaml.safe_load(overlay_path.read_text())
+        except yaml.YAMLError as e:
+            result.add_check("valid_yaml", False, f"Invalid YAML: {e}")
+            result.passed = False
+            return result
+
+        result.add_check("valid_yaml", True, "Valid YAML")
+
+        # Find pagination extensions in actions
+        pagination_configs = []
+        actions = content.get("actions", [])
+
+        for i, action in enumerate(actions):
+            update = action.get("update", {})
+            if "x-speakeasy-pagination" in str(update):
+                # Extract the pagination config
+                if isinstance(update, dict) and "x-speakeasy-pagination" in update:
+                    pagination_configs.append((i, update["x-speakeasy-pagination"]))
+
+        if not pagination_configs:
+            result.add_check("has_pagination", False, "No x-speakeasy-pagination found in actions")
+            result.passed = False
+            return result
+
+        result.add_check("has_pagination", True, f"Found {len(pagination_configs)} pagination config(s)")
+
+        # Validate each pagination config
+        for action_idx, config in pagination_configs:
+            prefix = f"action_{action_idx}_pagination"
+
+            # Check for required 'type' field
+            has_type = "type" in config
+            result.add_check(
+                f"{prefix}_has_type",
+                has_type,
+                f"type: {config.get('type', 'missing')}"
+            )
+            if not has_type:
+                result.passed = False
+                continue
+
+            pag_type = config.get("type")
+            valid_types = ["cursor", "offsetLimit", "offset"]
+            type_valid = pag_type in valid_types
+            result.add_check(
+                f"{prefix}_valid_type",
+                type_valid,
+                f"type '{pag_type}' {'is valid' if type_valid else f'not in {valid_types}'}"
+            )
+            if not type_valid:
+                result.passed = False
+
+            # Check for inputs
+            has_inputs = "inputs" in config and isinstance(config["inputs"], list)
+            result.add_check(
+                f"{prefix}_has_inputs",
+                has_inputs,
+                f"inputs: {len(config.get('inputs', []))} defined" if has_inputs else "inputs missing or invalid"
+            )
+            if not has_inputs:
+                result.passed = False
+
+            # Check for outputs
+            has_outputs = "outputs" in config and isinstance(config["outputs"], dict)
+            result.add_check(
+                f"{prefix}_has_outputs",
+                has_outputs,
+                f"outputs: {list(config.get('outputs', {}).keys())}" if has_outputs else "outputs missing or invalid"
+            )
+            if not has_outputs:
+                result.passed = False
+
+            # Type-specific validation
+            if pag_type == "cursor" and has_outputs:
+                outputs = config["outputs"]
+                has_next_cursor = "nextCursor" in outputs
+                result.add_check(
+                    f"{prefix}_cursor_has_next",
+                    has_next_cursor,
+                    "nextCursor output " + ("present" if has_next_cursor else "missing for cursor pagination")
+                )
+                if not has_next_cursor:
+                    result.passed = False
+
+        result.summary = f"{result.passed_count}/{len(result.checks)} pagination checks passed"
         return result
