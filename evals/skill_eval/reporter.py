@@ -29,7 +29,7 @@ class Reporter:
         if failed:
             self.console.print("\n[bold red]Failed Tests:[/bold red]")
             for f in failed:
-                self.console.print(f"  • {f['skill']} ({f['suite']})")
+                self.console.print(f"  • {f['skill']} ({f.get('name', f.get('skill', 'unknown'))})")
                 if "error" in f:
                     self.console.print(f"    [dim]Error: {f['error']}[/dim]")
                 for check in f.get("checks", []):
