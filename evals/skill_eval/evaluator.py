@@ -63,8 +63,13 @@ class SkillEvaluator:
 
         return skills_installed
 
-    async def evaluate(self, test: dict[str, Any]) -> dict[str, Any]:
-        """Evaluate a single test case using a real workspace."""
+    async def evaluate(self, test: dict[str, Any], with_skills: bool = True) -> dict[str, Any]:
+        """Evaluate a single test case using a real workspace.
+
+        Args:
+            test: Test case definition
+            with_skills: If True, install skills in workspace. If False, run without skills.
+        """
         test_type = test.get("type", "generation")
 
         handlers = {
@@ -75,7 +80,7 @@ class SkillEvaluator:
         }
 
         handler = handlers.get(test_type, self._eval_generation)
-        return await handler(test)
+        return await handler(test, with_skills=with_skills)
 
     async def _run_agent(
         self,
@@ -173,7 +178,7 @@ class SkillEvaluator:
 
         return None
 
-    async def _eval_generation(self, test: dict[str, Any]) -> dict[str, Any]:
+    async def _eval_generation(self, test: dict[str, Any], with_skills: bool = True) -> dict[str, Any]:
         """Evaluate SDK generation with skill-guided agent."""
         skill_name = test["skill"]  # The skill we expect to be used
         spec_content = test.get("spec")
@@ -186,8 +191,8 @@ class SkillEvaluator:
         with Workspace() as workspace:
             workspace.setup(spec_content)
 
-            # Setup ALL skills in workspace for SDK discovery
-            skills_installed = self._setup_all_skills_in_workspace(workspace)
+            # Setup ALL skills in workspace for SDK discovery (only if with_skills=True)
+            skills_installed = self._setup_all_skills_in_workspace(workspace) if with_skills else 0
 
             try:
                 agent_output, tool_calls, cost = await self._run_agent(
@@ -327,7 +332,7 @@ class SkillEvaluator:
                 "cost_usd": cost,
             }
 
-    async def _eval_overlay(self, test: dict[str, Any]) -> dict[str, Any]:
+    async def _eval_overlay(self, test: dict[str, Any], with_skills: bool = True) -> dict[str, Any]:
         """Evaluate overlay creation with skill-guided agent."""
         skill_name = test["skill"]
         spec_content = test.get("spec")
@@ -339,7 +344,7 @@ class SkillEvaluator:
 
         with Workspace() as workspace:
             workspace.setup(spec_content)
-            skills_installed = self._setup_all_skills_in_workspace(workspace)
+            skills_installed = self._setup_all_skills_in_workspace(workspace) if with_skills else 0
 
             try:
                 agent_output, tool_calls, cost = await self._run_agent(
@@ -453,7 +458,7 @@ class SkillEvaluator:
                 "cost_usd": cost,
             }
 
-    async def _eval_diagnosis(self, test: dict[str, Any]) -> dict[str, Any]:
+    async def _eval_diagnosis(self, test: dict[str, Any], with_skills: bool = True) -> dict[str, Any]:
         """Evaluate diagnosis of generation issues."""
         skill_name = test["skill"]
         spec_content = test.get("spec")
@@ -465,7 +470,7 @@ class SkillEvaluator:
 
         with Workspace() as workspace:
             workspace.setup(spec_content)
-            skills_installed = self._setup_all_skills_in_workspace(workspace)
+            skills_installed = self._setup_all_skills_in_workspace(workspace) if with_skills else 0
 
             try:
                 agent_output, tool_calls, cost = await self._run_agent(
@@ -500,7 +505,7 @@ class SkillEvaluator:
                 "cost_usd": cost,
             }
 
-    async def _eval_workflow(self, test: dict[str, Any]) -> dict[str, Any]:
+    async def _eval_workflow(self, test: dict[str, Any], with_skills: bool = True) -> dict[str, Any]:
         """Evaluate a complete workflow (multi-step task)."""
         skill_name = test["skill"]
         spec_content = test.get("spec")
@@ -512,7 +517,7 @@ class SkillEvaluator:
 
         with Workspace() as workspace:
             workspace.setup(spec_content)
-            skills_installed = self._setup_all_skills_in_workspace(workspace)
+            skills_installed = self._setup_all_skills_in_workspace(workspace) if with_skills else 0
 
             try:
                 agent_output, tool_calls, cost = await self._run_agent(

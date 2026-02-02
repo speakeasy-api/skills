@@ -100,7 +100,7 @@ class EvalRunner:
             async with sem:
                 if self.verbose:
                     print(f"Running: {test.get('name', 'unnamed')}...")
-                result = await evaluator.evaluate(test)
+                result = await evaluator.evaluate(test, with_skills=with_skills)
                 result["name"] = test.get("name", "unnamed")
                 return result
 
@@ -117,7 +117,7 @@ class EvalRunner:
         results["pass_rate"] = results["passed"] / results["total"] if results["total"] > 0 else 0
         return results
 
-    async def run_single(self, test_name: str) -> dict[str, Any]:
+    async def run_single(self, test_name: str, with_skills: bool = True) -> dict[str, Any]:
         """Run a single test by name."""
         all_tests = []
         for suite in ["generation", "overlay", "diagnosis", "workflow"]:
@@ -131,7 +131,7 @@ class EvalRunner:
             return {"passed": False, "error": test["error"]}
 
         evaluator = SkillEvaluator(model=self.model)
-        result = await evaluator.evaluate(test)
+        result = await evaluator.evaluate(test, with_skills=with_skills)
         result["name"] = test_name
         return result
 
@@ -141,11 +141,10 @@ class EvalRunner:
         skill_filter: str | None = None,
     ) -> dict[str, Any]:
         """Compare results with and without skill context."""
-        # This would require modifying the evaluator to optionally skip skill loading
-        # For now, just run with skills
+        without_results = await self.run(suite=suite, skill_filter=skill_filter, with_skills=False)
         with_results = await self.run(suite=suite, skill_filter=skill_filter, with_skills=True)
 
         return {
+            "without_skills": without_results,
             "with_skills": with_results,
-            "comparison_note": "Without-skills comparison requires evaluator modification",
         }
