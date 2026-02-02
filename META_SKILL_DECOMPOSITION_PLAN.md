@@ -42,14 +42,13 @@ The meta skill (`sdk-tf-generation-best-practices`) acts as a routing hub that d
 | Large spec handling | `diagnose-generation-failure` |
 | Decision tree (start) | Covered by existing skills |
 
-### Phase 2: Future Work
+### Phase 2: Completed ✓
 
-| Content Area | Recommendation |
-|--------------|----------------|
-| Multi-target SDKs | Create `orchestrate-multi-target-sdks` |
-| Multi-repo workflows | Create `orchestrate-multi-repo-sdks` |
-| Terraform publishing | Enhance `generate-terraform-provider` |
-| Advanced validation | Enhance `diagnose-generation-failure` |
+| Content Area | Status |
+|--------------|--------|
+| Multi-target SDKs | ✓ Created `orchestrate-multi-target-sdks` |
+| Multi-repo workflows | ✓ Created `orchestrate-multi-repo-sdks` |
+| Terraform publishing | ✓ Enhanced `generate-terraform-provider` |
 
 ### Phase 3: Meta Skill Removal
 
@@ -77,6 +76,10 @@ After decomposition, these phrases trigger specific skills:
 | "OpenAPI overlay" | `manage-openapi-overlays` |
 | "Terraform provider" | `generate-terraform-provider` |
 | "MCP server" | `generate-mcp-server` |
+| "multi-target SDK" | `orchestrate-multi-target-sdks` |
+| "SDK monorepo" | `orchestrate-multi-target-sdks` |
+| "multi-repo SDK" | `orchestrate-multi-repo-sdks` |
+| "cross-repo workflows" | `orchestrate-multi-repo-sdks` |
 
 ## Content Files Retention
 
@@ -101,6 +104,7 @@ This approach keeps skills under 150 lines while detailed content remains availa
 | CLI reference embedded | ✓ Added to start-new-sdk-project |
 | Troubleshooting tree embedded | ✓ Added to diagnose-generation-failure |
 | Large spec handling embedded | ✓ Added to diagnose-generation-failure |
-| Multi-target skill | Pending (Phase 2) |
-| Multi-repo skill | Pending (Phase 2) |
+| Multi-target skill | ✓ Created (Phase 2) |
+| Multi-repo skill | ✓ Created (Phase 2) |
+| Terraform publishing enhanced | ✓ Added to generate-terraform-provider (Phase 2) |
 | Meta skill removal | Pending (Phase 3) |
