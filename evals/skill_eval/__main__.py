@@ -315,7 +315,7 @@ def trend(count: int):
 
 
 @cli.command()
-@click.option("--suite", type=click.Choice(["generation", "overlay", "diagnosis", "workflow"]), required=True)
+@click.option("--suite", type=click.Choice(["all", "generation", "overlay", "diagnosis", "workflow"]), required=True)
 @click.option("--model", default="claude-sonnet-4-20250514", help="Model to use")
 def compare(suite: str, model: str):
     """Compare results with and without skills loaded.

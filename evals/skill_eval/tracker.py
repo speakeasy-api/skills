@@ -1,6 +1,7 @@
 """Evaluation results tracking for VCS."""
 
 import json
+import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -90,6 +91,11 @@ class EvalTracker:
             if d.get("expected_skill_invoked", False)
         )
 
+        # Calculate turn usage stats
+        turns_data = [d.get("turns_used", 0) for d in details if d.get("turns_used")]
+        avg_turns = sum(turns_data) / len(turns_data) if turns_data else 0
+        total_turns = sum(turns_data)
+
         # Create markdown entry
         dirty_marker = " (dirty)" if git_info["dirty"] else ""
         entry = f"""
@@ -106,6 +112,8 @@ class EvalTracker:
 | Skipped | {skipped} |
 | Total | {total} |
 | Skills Invoked | {skill_invoked_count}/{len(details)} |
+| Avg Turns | {avg_turns:.1f} |
+| Total Turns | {total_turns} |
 | Cost | ${total_cost:.4f} |
 | Results File | `{results_file.name}` |
 
@@ -144,9 +152,15 @@ class EvalTracker:
         self.history_file.write_text(new_content)
 
     def get_recent_results(self, n: int = 10) -> list[dict[str, Any]]:
-        """Load the N most recent result files."""
+        """Load the N most recent timestamped result files.
+
+        Only loads files matching the YYYYMMDD_HHMMSS.json pattern to avoid
+        picking up ad-hoc result files.
+        """
+        # Only match timestamped files (YYYYMMDD_HHMMSS.json)
+        timestamp_pattern = re.compile(r"^\d{8}_\d{6}\.json$")
         result_files = sorted(
-            self.results_dir.glob("*.json"),
+            [f for f in self.results_dir.glob("*.json") if timestamp_pattern.match(f.name)],
             key=lambda p: p.name,
             reverse=True
         )[:n]
@@ -170,9 +184,11 @@ class EvalTracker:
         pass_rates = []
         costs = []
         skill_invocation_rates = []
+        avg_turns_list = []
 
         for r in recent:
-            results = r.get("results", {})
+            # Handle both wrapped (metadata/results) and unwrapped formats
+            results = r.get("results", r)
             pass_rates.append(results.get("pass_rate", 0))
 
             details = results.get("details", [])
@@ -182,6 +198,11 @@ class EvalTracker:
             if details:
                 invoked = sum(1 for d in details if d.get("expected_skill_invoked", False))
                 skill_invocation_rates.append(invoked / len(details))
+
+                # Track turn usage
+                turns_data = [d.get("turns_used", 0) for d in details if d.get("turns_used")]
+                if turns_data:
+                    avg_turns_list.append(sum(turns_data) / len(turns_data))
             else:
                 skill_invocation_rates.append(0)
 
@@ -201,5 +222,10 @@ class EvalTracker:
                 "latest": skill_invocation_rates[0] if skill_invocation_rates else 0,
                 "avg": sum(skill_invocation_rates) / len(skill_invocation_rates) if skill_invocation_rates else 0,
                 "trend": skill_invocation_rates,
+            },
+            "avg_turns": {
+                "latest": avg_turns_list[0] if avg_turns_list else 0,
+                "avg": sum(avg_turns_list) / len(avg_turns_list) if avg_turns_list else 0,
+                "trend": avg_turns_list,
             },
         }

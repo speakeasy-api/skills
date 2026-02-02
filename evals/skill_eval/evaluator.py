@@ -87,8 +87,12 @@ class SkillEvaluator:
         workspace: Workspace,
         task: str,
         max_turns: int = 10,
-    ) -> tuple[str, list[dict], float | None]:
-        """Run agent with all skills loaded from workspace .claude/skills/ directory."""
+    ) -> tuple[str, list[dict], float | None, int]:
+        """Run agent with all skills loaded from workspace .claude/skills/ directory.
+
+        Returns:
+            tuple of (agent_output, tool_calls, total_cost, turns_used)
+        """
         options = ClaudeAgentOptions(
             model=self.model,
             max_turns=max_turns,
@@ -104,12 +108,14 @@ class SkillEvaluator:
         tool_calls = []
         agent_output = ""
         total_cost = None
+        turns_used = 0
 
         async with ClaudeSDKClient(options=options) as client:
             await client.query(task)
 
             async for msg in client.receive_response():
                 if isinstance(msg, AssistantMessage):
+                    turns_used += 1
                     for block in msg.content:
                         if isinstance(block, TextBlock):
                             agent_output += block.text
@@ -122,7 +128,7 @@ class SkillEvaluator:
                     if msg.total_cost_usd:
                         total_cost = msg.total_cost_usd
 
-        return agent_output, tool_calls, total_cost
+        return agent_output, tool_calls, total_cost, turns_used
 
     def _summarize_tool_input(self, tool_name: str, tool_input: Any) -> Any:
         """Summarize tool input for logging (truncate long content)."""
@@ -184,6 +190,7 @@ class SkillEvaluator:
         spec_content = test.get("spec")
         target = test.get("target", "typescript")
         task = test.get("task", f"Generate a {target} SDK from the OpenAPI spec at openapi.yaml using the Speakeasy CLI")
+        max_turns = test.get("max_turns", 10)
 
         if not spec_content:
             return {"skill": skill_name, "type": "generation", "passed": False, "error": "No spec provided"}
@@ -195,8 +202,8 @@ class SkillEvaluator:
             skills_installed = self._setup_all_skills_in_workspace(workspace) if with_skills else 0
 
             try:
-                agent_output, tool_calls, cost = await self._run_agent(
-                    workspace, task, max_turns=10
+                agent_output, tool_calls, cost, turns_used = await self._run_agent(
+                    workspace, task, max_turns=max_turns
                 )
             except Exception as e:
                 return {"skill": skill_name, "type": "generation", "passed": False, "error": str(e)}
@@ -333,6 +340,8 @@ class SkillEvaluator:
                 "speakeasy_commands": speakeasy_commands,
                 "changes": workspace.get_changes(),
                 "cost_usd": cost,
+                "turns_used": turns_used,
+                "max_turns": max_turns,
             }
 
     async def _eval_overlay(self, test: dict[str, Any], with_skills: bool = True) -> dict[str, Any]:
@@ -341,6 +350,7 @@ class SkillEvaluator:
         spec_content = test.get("spec")
         task = test.get("task", "Create an overlay to improve the SDK naming for the OpenAPI spec at openapi.yaml")
         expected_extensions = test.get("expected_extensions", [])
+        max_turns = test.get("max_turns", 10)
 
         if not spec_content:
             return {"skill": skill_name, "type": "overlay", "passed": False, "error": "No spec provided"}
@@ -350,8 +360,8 @@ class SkillEvaluator:
             skills_installed = self._setup_all_skills_in_workspace(workspace) if with_skills else 0
 
             try:
-                agent_output, tool_calls, cost = await self._run_agent(
-                    workspace, task, max_turns=10
+                agent_output, tool_calls, cost, turns_used = await self._run_agent(
+                    workspace, task, max_turns=max_turns
                 )
             except Exception as e:
                 return {"skill": skill_name, "type": "overlay", "passed": False, "error": str(e)}
@@ -459,6 +469,8 @@ class SkillEvaluator:
                 "tool_calls": tool_calls,
                 "speakeasy_commands": speakeasy_commands,
                 "cost_usd": cost,
+                "turns_used": turns_used,
+                "max_turns": max_turns,
             }
 
     async def _eval_diagnosis(self, test: dict[str, Any], with_skills: bool = True) -> dict[str, Any]:
@@ -467,6 +479,7 @@ class SkillEvaluator:
         spec_content = test.get("spec")
         expected_issues = test.get("expected_issues", [])
         task = test.get("task", "Analyze the OpenAPI spec at openapi.yaml and diagnose any issues that would affect SDK generation quality")
+        max_turns = test.get("max_turns", 10)
 
         if not spec_content:
             return {"skill": skill_name, "type": "diagnosis", "passed": False, "error": "No spec provided"}
@@ -476,8 +489,8 @@ class SkillEvaluator:
             skills_installed = self._setup_all_skills_in_workspace(workspace) if with_skills else 0
 
             try:
-                agent_output, tool_calls, cost = await self._run_agent(
-                    workspace, task, max_turns=10
+                agent_output, tool_calls, cost, turns_used = await self._run_agent(
+                    workspace, task, max_turns=max_turns
                 )
             except Exception as e:
                 return {"skill": skill_name, "type": "diagnosis", "passed": False, "error": str(e)}
@@ -506,6 +519,8 @@ class SkillEvaluator:
                 "speakeasy_commands": speakeasy_commands,
                 "output_length": len(agent_output),
                 "cost_usd": cost,
+                "turns_used": turns_used,
+                "max_turns": max_turns,
             }
 
     async def _eval_workflow(self, test: dict[str, Any], with_skills: bool = True) -> dict[str, Any]:
@@ -514,6 +529,7 @@ class SkillEvaluator:
         spec_content = test.get("spec")
         steps = test.get("steps", [])
         task = test.get("task", "Complete the SDK generation workflow for the OpenAPI spec at openapi.yaml")
+        max_turns = test.get("max_turns", 10)
 
         if not spec_content:
             return {"skill": skill_name, "type": "workflow", "passed": False, "error": "No spec provided"}
@@ -523,8 +539,8 @@ class SkillEvaluator:
             skills_installed = self._setup_all_skills_in_workspace(workspace) if with_skills else 0
 
             try:
-                agent_output, tool_calls, cost = await self._run_agent(
-                    workspace, task, max_turns=15
+                agent_output, tool_calls, cost, turns_used = await self._run_agent(
+                    workspace, task, max_turns=max_turns
                 )
             except Exception as e:
                 return {"skill": skill_name, "type": "workflow", "passed": False, "error": str(e)}
@@ -573,6 +589,8 @@ class SkillEvaluator:
                 "speakeasy_commands": speakeasy_commands,
                 "changes": workspace.get_changes(),
                 "cost_usd": cost,
+                "turns_used": turns_used,
+                "max_turns": max_turns,
             }
 
     def _extract_speakeasy_commands(self, tool_calls: list[dict]) -> list[str]:
