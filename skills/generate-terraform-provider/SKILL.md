@@ -398,6 +398,57 @@ For large APIs, maintain separate **stable** and **beta** providers:
 
 Users can install both simultaneously. When beta features mature, graduate them to the stable provider. To set up a beta provider, create a separate `terraform-provider-{name}-beta` repository with its own `gen.yaml` using `0.x` versioning, and publish it alongside the stable provider.
 
+## Testing the Provider
+
+### Add Test Dependency
+
+In `.speakeasy/gen.yaml`:
+
+```yaml
+terraform:
+  additionalDependencies:
+    github.com/hashicorp/terraform-plugin-testing: v1.13.3
+```
+
+### Acceptance Test Structure
+
+```go
+// internal/provider/resource_test.go
+func TestAccPet_Lifecycle(t *testing.T) {
+    t.Parallel()
+
+    resource.Test(t, resource.TestCase{
+        PreCheck:                 func() { testAccPreCheck(t) },
+        ProtoV6ProviderFactories: testAccProviders(),
+        Steps: []resource.TestStep{
+            {
+                Config: testAccPetConfig("Buddy", 1500),
+                Check: resource.ComposeTestCheckFunc(
+                    resource.TestCheckResourceAttr("petstore_pet.test", "name", "Buddy"),
+                ),
+            },
+            {
+                ResourceName:      "petstore_pet.test",
+                ImportState:       true,
+                ImportStateVerify: true,
+            },
+        },
+    })
+}
+```
+
+### Running Tests
+
+```bash
+# Unit tests
+go test -v ./...
+
+# Acceptance tests (REQUIRES TF_ACC=1)
+TF_ACC=1 go test -v ./internal/provider/... -timeout 30m
+```
+
+**Note:** Without `TF_ACC=1`, tests silently skip with PASS status.
+
 ## What NOT to Do
 
 - **Do NOT** use `#list` as an operation type -- only `create`, `read`, `update`, `delete` are valid

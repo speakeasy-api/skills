@@ -50,17 +50,17 @@ The meta skill (`sdk-tf-generation-best-practices`) acts as a routing hub that d
 | Multi-repo workflows | ✓ Created `orchestrate-multi-repo-sdks` |
 | Terraform publishing | ✓ Enhanced `generate-terraform-provider` |
 
-### Phase 3: Remaining Content (Future Work)
+### Phase 3: In Progress
 
-Content still in meta skill that needs distribution:
-
-| Content Directory | Files | Target Skill |
-|-------------------|-------|--------------|
-| `code-first/` | 8 framework guides (FastAPI, Django, Flask, NestJS, Hono, Laravel, Rails, Spring Boot) | Enhance `extract-openapi-from-code` |
-| `terraform/` | CRUD mapping, customization, testing | Enhance `generate-terraform-provider` |
-| `sdk-testing/` | Arazzo, contract, integration testing | Enhance `setup-sdk-testing` |
-| `spec-first/` | Pagination, schemas, security schemes, validation | Enhance `writing-openapi-specs` or create new skills |
-| `plans/` | SDK generation, TF provider generation plans | Keep as reference or embed in relevant skills |
+| Content Area | Status | Target Skill |
+|--------------|--------|--------------|
+| Speakeasy extensions | ✓ Created `configure-speakeasy-extensions` | New skill |
+| Framework Speakeasy integration | ✓ Enhanced `extract-openapi-from-code` | Added x-speakeasy-* examples |
+| Terraform testing | ✓ Enhanced `generate-terraform-provider` | Added acceptance test patterns |
+| `code-first/` detailed guides | Pending | Content files remain as reference |
+| `sdk-testing/` Arazzo/contract | Pending | Enhance `setup-sdk-testing` |
+| `spec-first/` validation | Pending | Enhance `writing-openapi-specs` |
+| `plans/` generation workflows | Pending | Keep as reference |
 
 ### Phase 4: Meta Skill Removal
 
@@ -92,6 +92,10 @@ After decomposition, these phrases trigger specific skills:
 | "SDK monorepo" | `orchestrate-multi-target-sdks` |
 | "multi-repo SDK" | `orchestrate-multi-repo-sdks` |
 | "cross-repo workflows" | `orchestrate-multi-repo-sdks` |
+| "x-speakeasy" | `configure-speakeasy-extensions` |
+| "add retries" | `configure-speakeasy-extensions` |
+| "open enums" | `configure-speakeasy-extensions` |
+| "global headers" | `configure-speakeasy-extensions` |
 
 ## Content Files Retention
 
@@ -119,8 +123,10 @@ This approach keeps skills under 150 lines while detailed content remains availa
 | Multi-target skill | ✓ Created (Phase 2) |
 | Multi-repo skill | ✓ Created (Phase 2) |
 | Terraform publishing enhanced | ✓ Added to generate-terraform-provider (Phase 2) |
-| Code-first content | Pending (Phase 3) |
-| Terraform content | Pending (Phase 3) |
+| Speakeasy extensions skill | ✓ Created (Phase 3) |
+| Framework Speakeasy integration | ✓ Enhanced extract-openapi-from-code (Phase 3) |
+| Terraform testing | ✓ Enhanced generate-terraform-provider (Phase 3) |
+| Code-first detailed guides | Pending (Phase 3) |
 | SDK testing content | Pending (Phase 3) |
 | Spec-first content | Pending (Phase 3) |
 | Meta skill removal | Pending (Phase 4) |
