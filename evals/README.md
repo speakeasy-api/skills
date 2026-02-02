@@ -6,14 +6,14 @@ Automated evaluation framework for Speakeasy agent skills using the Anthropic SD
 
 ```bash
 cd evals
-pip install -e .
+uv sync
 export ANTHROPIC_API_KEY="your-key"
 
 # Run all evaluations
-skill-eval run --suite all
+uv run skill-eval run --suite all
 
 # Compare with/without skills
-skill-eval compare --suite correctness
+uv run skill-eval compare --suite correctness
 ```
 
 ## Test Suites
@@ -29,16 +29,19 @@ skill-eval compare --suite correctness
 
 ```bash
 # Run specific suite
-skill-eval run --suite correctness
+uv run skill-eval run --suite correctness
 
 # Filter by skill
-skill-eval run --skill configure-speakeasy-extensions
+uv run skill-eval run --skill configure-speakeasy-extensions
 
 # Output JSON
-skill-eval run --suite all -o results.json
+uv run skill-eval run --suite all -o results.json
 
 # Use different model
-skill-eval run --suite all --model claude-opus-4-20250514
+uv run skill-eval run --suite all --model claude-opus-4-20250514
+
+# List available tests
+uv run skill-eval list
 ```
 
 ## Adding Tests
