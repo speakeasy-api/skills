@@ -1,20 +1,45 @@
-"""Anthropic SDK integration for skill evaluation."""
+"""Claude Agent SDK integration for skill evaluation."""
 
-import os
+import asyncio
 import re
 from typing import Any
 
-import anthropic
+from claude_agent_sdk import (
+    ClaudeSDKClient,
+    ClaudeAgentOptions,
+    AssistantMessage,
+    TextBlock,
+)
 
 from .assertions import check_assertions
 
 
 class SkillEvaluator:
-    """Evaluates skills using the Anthropic API."""
+    """Evaluates skills using the Claude Agent SDK."""
 
     def __init__(self, model: str = "claude-sonnet-4-20250514"):
         self.model = model
-        self.client = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
+    async def _query_agent(self, system_prompt: str, user_prompt: str, max_tokens: int = 2000) -> str:
+        """Query the Claude agent and return the response text."""
+        options = ClaudeAgentOptions(
+            model=self.model,
+            system_prompt=system_prompt,
+            max_turns=1,
+            allowed_tools=[],  # No tools needed for eval queries
+        )
+
+        async with ClaudeSDKClient(options=options) as client:
+            await client.query(user_prompt)
+
+            response_text = ""
+            async for msg in client.receive_response():
+                if isinstance(msg, AssistantMessage):
+                    for block in msg.content:
+                        if isinstance(block, TextBlock):
+                            response_text += block.text
+
+            return response_text
 
     async def evaluate(self, test: dict[str, Any], skill_content: str | None) -> dict[str, Any]:
         """Evaluate a single test case."""
@@ -58,11 +83,7 @@ class SkillEvaluator:
             system += f"\n\nSkill context:\n\n{skill_content}"
 
         try:
-            response = await self.client.messages.create(
-                model=self.model, max_tokens=2000, system=system,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            output = response.content[0].text
+            output = await self._query_agent(system, prompt)
             checks = check_assertions(output, test.get("assertions", []))
             return {"skill": test["skill"], "suite": "correctness", "prompt": prompt[:100], "checks": checks, "passed": all(c["passed"] for c in checks)}
         except Exception as e:
@@ -77,15 +98,12 @@ class SkillEvaluator:
             system += f"\n\nSkill context:\n\n{skill_content}"
 
         try:
-            response = await self.client.messages.create(
-                model=self.model, max_tokens=2000, system=system,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            output = response.content[0].text.lower()
+            output = await self._query_agent(system, prompt)
+            output_lower = output.lower()
             checks = []
             for step in required_steps:
                 keywords = [w for w in step.lower().split() if len(w) > 3]
-                found = sum(1 for k in keywords if k in output) >= max(1, len(keywords) // 2)
+                found = sum(1 for k in keywords if k in output_lower) >= max(1, len(keywords) // 2)
                 checks.append({"step": step, "passed": found})
             return {"skill": test["skill"], "suite": "completeness", "prompt": prompt[:100], "checks": checks, "passed": sum(c["passed"] for c in checks) >= len(checks) * 0.8}
         except Exception as e:
@@ -103,11 +121,7 @@ class SkillEvaluator:
         checks = []
         for prompt in prompts:
             try:
-                response = await self.client.messages.create(
-                    model=self.model, max_tokens=1000, system=system,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                output = response.content[0].text
+                output = await self._query_agent(system, prompt, max_tokens=1000)
                 found_ext = re.findall(r"x-speakeasy-[\w-]+", output)
                 invalid_ext = [e for e in found_ext if e not in valid_extensions]
                 found_cmd = re.findall(r"speakeasy\s+[\w-]+", output)

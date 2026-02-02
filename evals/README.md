@@ -1,6 +1,6 @@
 # Skill Evaluation Harness
 
-Automated evaluation framework for Speakeasy agent skills using the Anthropic SDK.
+Automated evaluation framework for Speakeasy agent skills using the Claude Agent SDK.
 
 ## Quick Start
 
@@ -66,7 +66,7 @@ evals/
 ├── skill_eval/           # Python package
 │   ├── __main__.py       # CLI
 │   ├── runner.py         # Test runner
-│   ├── evaluator.py      # Anthropic SDK integration
+│   ├── evaluator.py      # Claude Agent SDK integration
 │   ├── assertions.py     # Output validators
 │   └── reporter.py       # Results formatting
 ├── tests/                # Test definitions
