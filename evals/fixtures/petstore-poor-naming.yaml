@@ -1,0 +1,164 @@
+openapi: 3.0.3
+info:
+  title: Petstore API
+  version: 1.0.0
+servers:
+  - url: https://api.petstore.example.com/v1
+paths:
+  /api/v1/pets:
+    get:
+      # Missing operationId - will generate poor name like api_v1_pets_get
+      summary: List all pets
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: A list of pets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pet"
+    post:
+      # Missing operationId
+      summary: Create a new pet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePetRequest"
+      responses:
+        "201":
+          description: Pet created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+  /api/v1/pets/{id}:
+    get:
+      # Missing operationId
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A pet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+    put:
+      # Missing operationId
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePetRequest"
+      responses:
+        "200":
+          description: Pet updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pet"
+    delete:
+      # Missing operationId
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Pet deleted
+  /api/v1/pets/{id}/vaccinations:
+    get:
+      # Missing operationId - deeply nested path
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of vaccinations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Vaccination"
+    post:
+      # Missing operationId
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVaccinationRequest"
+      responses:
+        "201":
+          description: Vaccination recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vaccination"
+components:
+  schemas:
+    Pet:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        species:
+          type: string
+    CreatePetRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        species:
+          type: string
+    Vaccination:
+      type: object
+      properties:
+        id:
+          type: string
+        vaccine_name:
+          type: string
+        date:
+          type: string
+          format: date
+    CreateVaccinationRequest:
+      type: object
+      properties:
+        vaccine_name:
+          type: string
+        date:
+          type: string
+          format: date

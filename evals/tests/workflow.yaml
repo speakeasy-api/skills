@@ -1,0 +1,38 @@
+# End-to-End Workflow Tests
+# These tests verify complete SDK generation workflows
+
+tests:
+  - name: full-typescript-workflow
+    skill: start-new-sdk-project
+    type: workflow
+    target: typescript
+    spec_file: fixtures/petstore-minimal.yaml
+    task: |
+      Complete the full SDK generation workflow:
+      1. Lint the OpenAPI spec to check for issues
+      2. Generate a TypeScript SDK using speakeasy quickstart
+      3. Verify the SDK was created successfully
+    steps:
+      - name: lint-spec
+        tool: speakeasy_lint
+      - name: generate-sdk
+        tool: speakeasy_quickstart
+      - name: verify-workflow
+        creates_file: .speakeasy/workflow.yaml
+
+  - name: overlay-then-generate
+    skill: configure-speakeasy-extensions
+    type: workflow
+    spec_file: fixtures/petstore-poor-naming.yaml
+    task: |
+      Improve SDK quality through overlays then generate:
+      1. Analyze the spec with speakeasy lint
+      2. Use speakeasy suggest to generate naming improvements
+      3. Create the SDK with the improved naming
+    steps:
+      - name: lint-spec
+        tool: speakeasy_lint
+      - name: suggest-names
+        tool: speakeasy_suggest
+      - name: overlay-created
+        creates_file: overlays/naming.yaml

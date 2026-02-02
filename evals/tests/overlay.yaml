@@ -1,0 +1,35 @@
+# Overlay Creation Tests
+# These tests verify that skills guide proper overlay creation
+
+tests:
+  - name: fix-poor-naming-with-overlay
+    skill: configure-speakeasy-extensions
+    type: overlay
+    spec_file: fixtures/petstore-poor-naming.yaml
+    task: |
+      The OpenAPI spec has missing operationIds which will result in poor SDK method names.
+      Create an overlay to add x-speakeasy-name-override and x-speakeasy-group extensions
+      to improve the SDK naming.
+    expected_extensions:
+      - x-speakeasy-name-override
+      - x-speakeasy-group
+
+  - name: add-pagination-extensions
+    skill: configure-speakeasy-extensions
+    type: overlay
+    spec_file: fixtures/paginated-api.yaml
+    task: |
+      The API has paginated endpoints. Create an overlay to add x-speakeasy-pagination
+      extensions to enable automatic pagination in the SDK.
+    expected_extensions:
+      - x-speakeasy-pagination
+
+  - name: add-retry-configuration
+    skill: configure-speakeasy-extensions
+    type: overlay
+    spec_file: fixtures/petstore-minimal.yaml
+    task: |
+      Create an overlay to add x-speakeasy-retries configuration with exponential backoff
+      for 5XX errors and 429 rate limits.
+    expected_extensions:
+      - x-speakeasy-retries

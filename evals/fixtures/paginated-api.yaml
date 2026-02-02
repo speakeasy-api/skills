@@ -1,0 +1,151 @@
+openapi: 3.0.3
+info:
+  title: Paginated Resources API
+  version: 1.0.0
+  description: An API with paginated list endpoints - good candidate for x-speakeasy-pagination
+servers:
+  - url: https://api.example.com/v1
+paths:
+  /users:
+    get:
+      operationId: listUsers
+      summary: List users with pagination
+      parameters:
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          description: Items per page
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        "200":
+          description: Paginated list of users
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponse"
+  /orders:
+    get:
+      operationId: listOrders
+      summary: List orders with cursor pagination
+      parameters:
+        - name: cursor
+          in: query
+          description: Cursor for pagination
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Max items to return
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Paginated list of orders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderListResponse"
+  /products:
+    get:
+      operationId: listProducts
+      summary: List products with offset pagination
+      parameters:
+        - name: offset
+          in: query
+          description: Number of items to skip
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          description: Max items to return
+          schema:
+            type: integer
+            default: 25
+      responses:
+        "200":
+          description: Paginated list of products
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductListResponse"
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+    UserListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+        total_pages:
+          type: integer
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        total:
+          type: number
+        status:
+          type: string
+    OrderListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Order"
+        next_cursor:
+          type: string
+          nullable: true
+        has_more:
+          type: boolean
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+    ProductListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        offset:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer

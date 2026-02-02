@@ -1,4 +1,4 @@
-"""Test runner for skill evaluations."""
+"""Test runner for workspace-based skill evaluations."""
 
 import asyncio
 from pathlib import Path
@@ -16,11 +16,12 @@ class EvalRunner:
         self.model = model
         self.verbose = verbose
         self.tests_dir = Path(__file__).parent.parent / "tests"
+        self.fixtures_dir = Path(__file__).parent.parent / "fixtures"
         self.skills_dir = Path(__file__).parent.parent.parent / "skills"
 
     def load_tests(self, suite: str) -> list[dict[str, Any]]:
         """Load test cases from YAML files."""
-        suites = ["activation", "correctness", "completeness", "hallucination"] if suite == "all" else [suite]
+        suites = ["generation", "overlay", "diagnosis", "workflow"] if suite == "all" else [suite]
         tests = []
 
         for s in suites:
@@ -30,47 +31,121 @@ class EvalRunner:
                     data = yaml.safe_load(f)
                     for test in data.get("tests", []):
                         test["suite"] = s
-                        # Inherit valid lists from top level
-                        if "valid_extensions" not in test and "valid_extensions" in data:
-                            test["valid_extensions"] = data["valid_extensions"]
-                        if "valid_commands" not in test and "valid_commands" in data:
-                            test["valid_commands"] = data["valid_commands"]
+                        # Load spec content from file if spec_file is provided
+                        if "spec_file" in test:
+                            spec_path = self.fixtures_dir.parent / test["spec_file"]
+                            if spec_path.exists():
+                                test["spec"] = spec_path.read_text()
+                            else:
+                                test["spec"] = None
+                                test["error"] = f"Spec file not found: {test['spec_file']}"
                         tests.append(test)
         return tests
 
     def list_tests(self) -> dict[str, list[dict]]:
         """List all tests grouped by suite."""
-        return {s: self.load_tests(s) for s in ["activation", "correctness", "completeness", "hallucination"]}
+        return {s: self.load_tests(s) for s in ["generation", "overlay", "diagnosis", "workflow"]}
 
     def load_skill(self, skill_name: str) -> str | None:
         """Load skill content from SKILL.md file."""
         skill_path = self.skills_dir / skill_name / "SKILL.md"
         return skill_path.read_text() if skill_path.exists() else None
 
-    async def run(self, suite: str = "all", skill_filter: str | None = None, with_skills: bool = True) -> dict[str, Any]:
+    async def run(
+        self,
+        suite: str = "all",
+        skill_filter: str | None = None,
+        test_filter: str | None = None,
+        with_skills: bool = True,
+        max_concurrent: int = 3,
+    ) -> dict[str, Any]:
         """Run evaluation suite."""
         tests = self.load_tests(suite)
+
         if skill_filter:
-            tests = [t for t in tests if t["skill"] == skill_filter]
+            tests = [t for t in tests if t.get("skill") == skill_filter]
+
+        if test_filter:
+            tests = [t for t in tests if test_filter in t.get("name", "")]
+
+        # Skip tests with missing specs
+        valid_tests = [t for t in tests if "error" not in t]
+        skipped_tests = [t for t in tests if "error" in t]
 
         evaluator = SkillEvaluator(model=self.model)
-        results = {"suite": suite, "total": len(tests), "passed": 0, "failed": 0, "details": []}
+        results = {
+            "suite": suite,
+            "total": len(tests),
+            "passed": 0,
+            "failed": 0,
+            "skipped": len(skipped_tests),
+            "details": [],
+        }
 
-        sem = asyncio.Semaphore(5)
+        # Add skipped tests to results
+        for test in skipped_tests:
+            results["details"].append({
+                "name": test.get("name", "unknown"),
+                "skill": test.get("skill", "unknown"),
+                "type": test.get("type", "unknown"),
+                "passed": False,
+                "skipped": True,
+                "error": test.get("error"),
+            })
+
+        # Run valid tests with concurrency limit
+        sem = asyncio.Semaphore(max_concurrent)
 
         async def run_test(test: dict) -> dict:
             async with sem:
-                skill_content = self.load_skill(test["skill"]) if with_skills else None
-                return await evaluator.evaluate(test, skill_content)
+                if self.verbose:
+                    print(f"Running: {test.get('name', 'unnamed')}...")
+                result = await evaluator.evaluate(test)
+                result["name"] = test.get("name", "unnamed")
+                return result
 
-        test_results = await asyncio.gather(*[run_test(t) for t in tests])
+        if valid_tests:
+            test_results = await asyncio.gather(*[run_test(t) for t in valid_tests])
 
-        for result in test_results:
-            results["details"].append(result)
-            if result.get("passed"):
-                results["passed"] += 1
-            else:
-                results["failed"] += 1
+            for result in test_results:
+                results["details"].append(result)
+                if result.get("passed"):
+                    results["passed"] += 1
+                else:
+                    results["failed"] += 1
 
         results["pass_rate"] = results["passed"] / results["total"] if results["total"] > 0 else 0
         return results
+
+    async def run_single(self, test_name: str) -> dict[str, Any]:
+        """Run a single test by name."""
+        all_tests = []
+        for suite in ["generation", "overlay", "diagnosis", "workflow"]:
+            all_tests.extend(self.load_tests(suite))
+
+        test = next((t for t in all_tests if t.get("name") == test_name), None)
+        if not test:
+            return {"passed": False, "error": f"Test not found: {test_name}"}
+
+        if "error" in test:
+            return {"passed": False, "error": test["error"]}
+
+        evaluator = SkillEvaluator(model=self.model)
+        result = await evaluator.evaluate(test)
+        result["name"] = test_name
+        return result
+
+    async def compare_with_without_skills(
+        self,
+        suite: str,
+        skill_filter: str | None = None,
+    ) -> dict[str, Any]:
+        """Compare results with and without skill context."""
+        # This would require modifying the evaluator to optionally skip skill loading
+        # For now, just run with skills
+        with_results = await self.run(suite=suite, skill_filter=skill_filter, with_skills=True)
+
+        return {
+            "with_skills": with_results,
+            "comparison_note": "Without-skills comparison requires evaluator modification",
+        }

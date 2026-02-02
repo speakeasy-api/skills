@@ -1,0 +1,30 @@
+# SDK Generation Tests
+# These tests verify that skills guide successful SDK generation
+
+tests:
+  - name: typescript-sdk-from-clean-spec
+    skill: start-new-sdk-project
+    type: generation
+    target: typescript
+    spec_file: fixtures/petstore-minimal.yaml
+    task: |
+      Generate a TypeScript SDK from the OpenAPI spec.
+      Use speakeasy quickstart with appropriate naming.
+
+  - name: python-sdk-from-clean-spec
+    skill: start-new-sdk-project
+    type: generation
+    target: python
+    spec_file: fixtures/petstore-minimal.yaml
+    task: |
+      Generate a Python SDK from the OpenAPI spec.
+      Use speakeasy quickstart with appropriate naming.
+
+  - name: go-sdk-from-clean-spec
+    skill: start-new-sdk-project
+    type: generation
+    target: go
+    spec_file: fixtures/petstore-minimal.yaml
+    task: |
+      Generate a Go SDK from the OpenAPI spec.
+      Use speakeasy quickstart with appropriate naming.
