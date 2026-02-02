@@ -49,6 +49,7 @@ class WorkspaceAssessor:
             result.passed = False
 
         # Check for SDK output directory
+        # Speakeasy can generate SDK in subdirectories or directly in workspace root
         sdk_patterns = [
             f"sdk/{target}",
             f"sdks/{target}",
@@ -62,11 +63,21 @@ class WorkspaceAssessor:
                 sdk_dir = candidate
                 break
 
+        # Also check if SDK was generated directly in workspace root
+        # (common for speakeasy quickstart)
+        if sdk_dir is None:
+            # Check for .speakeasy/gen.yaml which indicates SDK generation happened
+            gen_yaml = self.workspace_dir / ".speakeasy" / "gen.yaml"
+            # Check for src/ directory at root level
+            src_dir = self.workspace_dir / "src"
+            if gen_yaml.exists() and src_dir.is_dir():
+                sdk_dir = self.workspace_dir  # SDK was generated at root
+
         sdk_dir_exists = sdk_dir is not None
         result.add_check(
             "sdk_directory_exists",
             sdk_dir_exists,
-            f"SDK output directory {'found at ' + str(sdk_dir.relative_to(self.workspace_dir)) if sdk_dir else 'not found'}"
+            f"SDK output directory {'found at ' + (str(sdk_dir.relative_to(self.workspace_dir)) if sdk_dir != self.workspace_dir else '(workspace root)') if sdk_dir else 'not found'}"
         )
         if not sdk_dir_exists:
             result.passed = False
