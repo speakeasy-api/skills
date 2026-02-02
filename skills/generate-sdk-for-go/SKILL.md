@@ -107,8 +107,10 @@ type ConsumersSDK interface {
 ```go
 func TestMyService(t *testing.T) {
     mock := mocks.NewMockConsumersSDK(t)
-    mock.EXPECT().Create(mock.Anything, mock.AnythingOfType("Consumer")).
-        Return(&CreateResponse{ID: "123"}, nil)
+    mock.EXPECT().Create(
+        mock.AnythingOfType("*context.Context"),
+        mock.AnythingOfType("Consumer"),
+    ).Return(&CreateResponse{ID: "123"}, nil)
 
     // Use mock in your code
     result, err := mock.Create(ctx, Consumer{Name: "test"})
@@ -151,3 +153,4 @@ controller-gen object paths=./models/components/
 - `start-new-sdk-project` - Initial SDK setup
 - `customize-sdk-hooks` - Detailed hook patterns
 - `setup-sdk-testing` - Integration testing
+- `manage-openapi-overlays` - Spec customization

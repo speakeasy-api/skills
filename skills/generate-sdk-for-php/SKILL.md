@@ -180,3 +180,4 @@ class CustomHeaderHook implements BeforeRequestHook
 - `start-new-sdk-project` - Initial SDK setup
 - `customize-sdk-hooks` - Hook implementation
 - `setup-sdk-testing` - Testing patterns
+- `manage-openapi-overlays` - Spec customization
