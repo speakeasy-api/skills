@@ -9,9 +9,11 @@ tests:
     spec_file: fixtures/petstore-minimal.yaml
     task: |
       Complete the full SDK generation workflow:
-      1. Lint the OpenAPI spec to check for issues
-      2. Generate a TypeScript SDK using speakeasy quickstart
-      3. Verify the SDK was created successfully
+      1. Lint the OpenAPI spec at openapi.yaml to check for issues using `speakeasy lint openapi -s openapi.yaml`
+      2. Generate a TypeScript SDK using `speakeasy quickstart` (NOT `speakeasy generate sdk`).
+         IMPORTANT: You MUST use `speakeasy quickstart --skip-interactive --output console -s openapi.yaml -t typescript -n PetstoreSDK -p petstore-sdk`
+         The quickstart command creates .speakeasy/workflow.yaml which is required.
+      3. Verify that .speakeasy/workflow.yaml was created (this file is only created by quickstart, not generate)
     steps:
       - name: lint-spec
         command: speakeasy lint
