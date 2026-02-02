@@ -1,11 +1,13 @@
 """Claude Agent SDK integration for workspace-based skill evaluation.
 
-Uses standard Claude Code tools (Bash, Read, Write, Glob, Grep) to evaluate
-whether skills effectively guide the agent to use the Speakeasy CLI correctly.
+Uses the SDK's native skill loading mechanism to evaluate whether skills
+effectively guide the agent to use the Speakeasy CLI correctly.
+
+Skills are loaded from the workspace's .claude/skills/ directory using
+setting_sources=["project"], matching how Claude Code discovers skills.
 """
 
-import asyncio
-import re
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -23,16 +25,30 @@ from .assessor import WorkspaceAssessor
 
 
 class SkillEvaluator:
-    """Evaluates skills using workspace-based agentic workflows with standard tools."""
+    """Evaluates skills using the SDK's native skill loading mechanism."""
 
     def __init__(self, model: str = "claude-sonnet-4-20250514"):
         self.model = model
         self.skills_dir = Path(__file__).parent.parent.parent / "skills"
 
-    def load_skill(self, skill_name: str) -> str | None:
-        """Load skill content from SKILL.md file."""
-        skill_path = self.skills_dir / skill_name / "SKILL.md"
-        return skill_path.read_text() if skill_path.exists() else None
+    def _setup_skill_in_workspace(self, workspace: Workspace, skill_name: str) -> bool:
+        """Copy skill to workspace's .claude/skills/ directory for SDK discovery."""
+        source_skill_dir = self.skills_dir / skill_name
+        if not source_skill_dir.exists():
+            return False
+
+        # Create .claude/skills/{skill_name}/ in workspace
+        target_skill_dir = workspace.base_dir / ".claude" / "skills" / skill_name
+        target_skill_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy SKILL.md and any supporting files
+        for item in source_skill_dir.iterdir():
+            if item.is_file():
+                shutil.copy2(item, target_skill_dir / item.name)
+            elif item.is_dir():
+                shutil.copytree(item, target_skill_dir / item.name, dirs_exist_ok=True)
+
+        return True
 
     async def evaluate(self, test: dict[str, Any]) -> dict[str, Any]:
         """Evaluate a single test case using a real workspace."""
@@ -52,19 +68,17 @@ class SkillEvaluator:
         self,
         workspace: Workspace,
         task: str,
-        skill_content: str | None,
         max_turns: int = 10,
     ) -> tuple[str, list[dict], float | None]:
-        """Run agent with standard Claude Code tools in the workspace."""
-        system_prompt = self._build_system_prompt(skill_content, workspace.base_dir)
-
+        """Run agent with skills loaded from workspace .claude/skills/ directory."""
         options = ClaudeAgentOptions(
             model=self.model,
-            system_prompt=system_prompt,
             max_turns=max_turns,
             cwd=workspace.base_dir,
-            # Use standard Claude Code tools
-            allowed_tools=["Bash", "Read", "Write", "Glob", "Grep"],
+            # Load skills from the workspace's .claude/skills/ directory
+            setting_sources=["project"],
+            # Use standard Claude Code tools plus Skill tool for skill invocation
+            allowed_tools=["Skill", "Bash", "Read", "Write", "Glob", "Grep"],
             # Auto-accept file edits and bash commands in the workspace
             permission_mode="bypassPermissions",
         )
@@ -107,7 +121,6 @@ class SkillEvaluator:
     async def _eval_generation(self, test: dict[str, Any]) -> dict[str, Any]:
         """Evaluate SDK generation with a skill-guided agent."""
         skill_name = test["skill"]
-        skill_content = self.load_skill(skill_name)
         spec_content = test.get("spec")
         target = test.get("target", "typescript")
         task = test.get("task", f"Generate a {target} SDK from the OpenAPI spec at openapi.yaml using the Speakeasy CLI")
@@ -118,15 +131,22 @@ class SkillEvaluator:
         with Workspace() as workspace:
             workspace.setup(spec_content)
 
+            # Setup skill in workspace for SDK discovery
+            if not self._setup_skill_in_workspace(workspace, skill_name):
+                return {"skill": skill_name, "type": "generation", "passed": False, "error": f"Skill not found: {skill_name}"}
+
             try:
                 agent_output, tool_calls, cost = await self._run_agent(
-                    workspace, task, skill_content, max_turns=10
+                    workspace, task, max_turns=10
                 )
             except Exception as e:
                 return {"skill": skill_name, "type": "generation", "passed": False, "error": str(e)}
 
             # Check if speakeasy commands were used
             speakeasy_commands = self._extract_speakeasy_commands(tool_calls)
+
+            # Check if skill was invoked
+            skill_invoked = any(tc["name"] == "Skill" for tc in tool_calls)
 
             # Assess the result
             assessor = WorkspaceAssessor(workspace.base_dir)
@@ -139,6 +159,7 @@ class SkillEvaluator:
                 "passed": assessment.passed,
                 "checks": assessment.checks,
                 "summary": assessment.summary,
+                "skill_invoked": skill_invoked,
                 "tool_calls": tool_calls,
                 "speakeasy_commands": speakeasy_commands,
                 "changes": workspace.get_changes(),
@@ -148,7 +169,6 @@ class SkillEvaluator:
     async def _eval_overlay(self, test: dict[str, Any]) -> dict[str, Any]:
         """Evaluate overlay creation with a skill-guided agent."""
         skill_name = test["skill"]
-        skill_content = self.load_skill(skill_name)
         spec_content = test.get("spec")
         task = test.get("task", "Create an overlay to improve the SDK naming for the OpenAPI spec at openapi.yaml")
         expected_extensions = test.get("expected_extensions", [])
@@ -159,14 +179,18 @@ class SkillEvaluator:
         with Workspace() as workspace:
             workspace.setup(spec_content)
 
+            if not self._setup_skill_in_workspace(workspace, skill_name):
+                return {"skill": skill_name, "type": "overlay", "passed": False, "error": f"Skill not found: {skill_name}"}
+
             try:
                 agent_output, tool_calls, cost = await self._run_agent(
-                    workspace, task, skill_content, max_turns=10
+                    workspace, task, max_turns=10
                 )
             except Exception as e:
                 return {"skill": skill_name, "type": "overlay", "passed": False, "error": str(e)}
 
             speakeasy_commands = self._extract_speakeasy_commands(tool_calls)
+            skill_invoked = any(tc["name"] == "Skill" for tc in tool_calls)
 
             # Find and assess overlay files
             overlay_files = workspace.list_files("**/*.yaml")
@@ -186,6 +210,7 @@ class SkillEvaluator:
                     "type": "overlay",
                     "passed": False,
                     "error": "No overlay file created",
+                    "skill_invoked": skill_invoked,
                     "tool_calls": tool_calls,
                     "speakeasy_commands": speakeasy_commands,
                     "cost_usd": cost,
@@ -221,6 +246,7 @@ class SkillEvaluator:
                 "type": "overlay",
                 "passed": all_passed,
                 "overlays": overlay_results,
+                "skill_invoked": skill_invoked,
                 "tool_calls": tool_calls,
                 "speakeasy_commands": speakeasy_commands,
                 "cost_usd": cost,
@@ -229,7 +255,6 @@ class SkillEvaluator:
     async def _eval_diagnosis(self, test: dict[str, Any]) -> dict[str, Any]:
         """Evaluate diagnosis of generation issues."""
         skill_name = test["skill"]
-        skill_content = self.load_skill(skill_name)
         spec_content = test.get("spec")
         expected_issues = test.get("expected_issues", [])
         task = test.get("task", "Analyze the OpenAPI spec at openapi.yaml and diagnose any issues that would affect SDK generation quality")
@@ -240,14 +265,18 @@ class SkillEvaluator:
         with Workspace() as workspace:
             workspace.setup(spec_content)
 
+            if not self._setup_skill_in_workspace(workspace, skill_name):
+                return {"skill": skill_name, "type": "diagnosis", "passed": False, "error": f"Skill not found: {skill_name}"}
+
             try:
                 agent_output, tool_calls, cost = await self._run_agent(
-                    workspace, task, skill_content, max_turns=10
+                    workspace, task, max_turns=10
                 )
             except Exception as e:
                 return {"skill": skill_name, "type": "diagnosis", "passed": False, "error": str(e)}
 
             speakeasy_commands = self._extract_speakeasy_commands(tool_calls)
+            skill_invoked = any(tc["name"] == "Skill" for tc in tool_calls)
 
             # Check if expected issues were identified
             checks = []
@@ -262,6 +291,7 @@ class SkillEvaluator:
                 "type": "diagnosis",
                 "passed": passed,
                 "expected_issues": checks,
+                "skill_invoked": skill_invoked,
                 "tool_calls": tool_calls,
                 "speakeasy_commands": speakeasy_commands,
                 "output_length": len(agent_output),
@@ -271,7 +301,6 @@ class SkillEvaluator:
     async def _eval_workflow(self, test: dict[str, Any]) -> dict[str, Any]:
         """Evaluate a complete workflow (multi-step task)."""
         skill_name = test["skill"]
-        skill_content = self.load_skill(skill_name)
         spec_content = test.get("spec")
         steps = test.get("steps", [])
         task = test.get("task", "Complete the SDK generation workflow for the OpenAPI spec at openapi.yaml")
@@ -282,14 +311,18 @@ class SkillEvaluator:
         with Workspace() as workspace:
             workspace.setup(spec_content)
 
+            if not self._setup_skill_in_workspace(workspace, skill_name):
+                return {"skill": skill_name, "type": "workflow", "passed": False, "error": f"Skill not found: {skill_name}"}
+
             try:
                 agent_output, tool_calls, cost = await self._run_agent(
-                    workspace, task, skill_content, max_turns=15
+                    workspace, task, max_turns=15
                 )
             except Exception as e:
                 return {"skill": skill_name, "type": "workflow", "passed": False, "error": str(e)}
 
             speakeasy_commands = self._extract_speakeasy_commands(tool_calls)
+            skill_invoked = any(tc["name"] == "Skill" for tc in tool_calls)
 
             # Verify expected steps were performed
             step_results = []
@@ -324,6 +357,7 @@ class SkillEvaluator:
                 "type": "workflow",
                 "passed": all_passed,
                 "steps": step_results,
+                "skill_invoked": skill_invoked,
                 "tool_calls": tool_calls,
                 "speakeasy_commands": speakeasy_commands,
                 "changes": workspace.get_changes(),
@@ -341,31 +375,3 @@ class SkillEvaluator:
                 if isinstance(cmd, str) and "speakeasy" in cmd:
                     commands.append(cmd)
         return commands
-
-    def _build_system_prompt(self, skill_content: str | None, workspace_dir: Path) -> str:
-        """Build system prompt with skill context and workspace info."""
-        prompt = f"""You are an expert at SDK generation using the Speakeasy CLI.
-
-Your working directory is: {workspace_dir}
-The workspace contains an OpenAPI spec at openapi.yaml.
-
-You have access to standard tools: Bash, Read, Write, Glob, Grep.
-Use the Bash tool to run speakeasy CLI commands.
-
-Key speakeasy commands:
-- speakeasy quickstart -s <spec> -t <target> -n <name> -p <package> --skip-interactive --output console
-- speakeasy run --output console
-- speakeasy lint openapi -s <spec> --non-interactive
-- speakeasy suggest operation-ids -s <spec> -o <overlay>
-- speakeasy overlay apply -s <spec> -o <overlay> --out <output>
-- speakeasy overlay validate -o <overlay>
-"""
-        if skill_content:
-            prompt += f"""
-## Skill Context
-
-The following skill provides guidance for this task:
-
-{skill_content}
-"""
-        return prompt

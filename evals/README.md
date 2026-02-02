@@ -4,12 +4,15 @@ Workspace-based evaluation framework for Speakeasy agent skills using the Claude
 
 ## Overview
 
-This harness evaluates skills by running real SDK generation workflows in isolated workspaces. Instead of just checking if the model outputs certain strings, it:
+This harness evaluates skills by running real SDK generation workflows in isolated workspaces using the SDK's native skill loading mechanism. It:
 
 1. Creates an isolated workspace with an OpenAPI spec
-2. Runs a Claude agent with skill context and Speakeasy CLI tools
-3. Assesses the workspace state after the agent completes
-4. Verifies actual SDK artifacts were created correctly
+2. Copies the skill being tested to the workspace's `.claude/skills/` directory
+3. Runs a Claude agent with `setting_sources=["project"]` to discover the skill
+4. Lets Claude autonomously invoke the skill when relevant
+5. Assesses the workspace state after the agent completes
+
+This matches how skills work in Claude Code - skills are discovered from the filesystem and Claude decides when to invoke them based on the task.
 
 ## Requirements
 
@@ -118,9 +121,9 @@ tests:
     spec_file: fixtures/my-api.yaml
     steps:
       - name: lint
-        tool: speakeasy_lint
+        command: speakeasy lint
       - name: generate
-        tool: speakeasy_quickstart
+        command: speakeasy quickstart
       - name: verify
         creates_file: .speakeasy/workflow.yaml
 ```
@@ -151,38 +154,42 @@ evals/
 
 ## How It Works
 
-1. **Workspace Creation**: Each test runs in an isolated temporary directory with the OpenAPI spec
+1. **Workspace Setup**: Creates an isolated temp directory with:
+   - The OpenAPI spec at `openapi.yaml`
+   - The skill copied to `.claude/skills/{skill-name}/SKILL.md`
 
-2. **Agent Execution**: A Claude agent is created with:
-   - Skill content as system prompt context
-   - MCP tools for workspace file operations
-   - MCP tools for Speakeasy CLI commands (quickstart, run, lint, suggest, overlay)
+2. **Agent Configuration**: Runs with:
+   ```python
+   ClaudeAgentOptions(
+       cwd=workspace_dir,
+       setting_sources=["project"],  # Load skills from .claude/skills/
+       allowed_tools=["Skill", "Bash", "Read", "Write", "Glob", "Grep"],
+       permission_mode="bypassPermissions",
+   )
+   ```
 
-3. **State Assessment**: After the agent completes, the workspace is assessed:
+3. **Skill Discovery**: The SDK discovers skills from `.claude/skills/` at startup, just like Claude Code does
+
+4. **Autonomous Invocation**: Claude decides when to invoke the skill based on:
+   - The skill's `description` field (trigger phrases)
+   - The task being performed
+
+5. **State Assessment**: After completion, verifies:
    - Were expected files created?
-   - Is the generated SDK valid for the target language?
+   - Is the generated SDK valid?
    - Did overlays contain expected extensions?
-   - Were expected tools called?
+   - Was the skill actually invoked?
 
-4. **Results Reporting**: Pass/fail with detailed checks and tool call logs
+## What This Tests
 
-## How Skills Are Tested
+The evaluation measures whether skills effectively:
 
-The agent uses **standard Claude Code tools** (not custom wrappers):
+1. **Activate correctly** - Does Claude invoke the skill for relevant tasks?
+2. **Guide CLI usage** - Does the agent use correct speakeasy commands?
+3. **Produce valid output** - Are generated SDKs/overlays structurally correct?
+4. **Complete workflows** - Can multi-step tasks be completed successfully?
 
-| Tool | Usage |
-|------|-------|
-| `Bash` | Run speakeasy CLI commands |
-| `Read` | Read files from workspace |
-| `Write` | Create/modify files |
-| `Glob` | Find files by pattern |
-| `Grep` | Search file contents |
-
-This tests whether skills effectively guide the agent to:
-1. Use the correct speakeasy commands
-2. Pass appropriate flags (e.g., `--skip-interactive`, `--output console`)
-3. Create valid overlays and configurations
-4. Complete multi-step workflows correctly
+Results include `skill_invoked: true/false` to track whether skills are being triggered.
 
 ## Development
 
