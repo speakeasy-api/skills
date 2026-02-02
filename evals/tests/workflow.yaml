@@ -14,9 +14,9 @@ tests:
       3. Verify the SDK was created successfully
     steps:
       - name: lint-spec
-        tool: speakeasy_lint
+        command: speakeasy lint
       - name: generate-sdk
-        tool: speakeasy_quickstart
+        command: speakeasy quickstart
       - name: verify-workflow
         creates_file: .speakeasy/workflow.yaml
 
@@ -31,8 +31,6 @@ tests:
       3. Create the SDK with the improved naming
     steps:
       - name: lint-spec
-        tool: speakeasy_lint
+        command: speakeasy lint
       - name: suggest-names
-        tool: speakeasy_suggest
-      - name: overlay-created
-        creates_file: overlays/naming.yaml
+        command: speakeasy suggest

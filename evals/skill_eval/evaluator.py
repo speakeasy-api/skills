@@ -1,8 +1,11 @@
-"""Claude Agent SDK integration for workspace-based skill evaluation."""
+"""Claude Agent SDK integration for workspace-based skill evaluation.
+
+Uses standard Claude Code tools (Bash, Read, Write, Glob, Grep) to evaluate
+whether skills effectively guide the agent to use the Speakeasy CLI correctly.
+"""
 
 import asyncio
-import json
-import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -13,17 +16,14 @@ from claude_agent_sdk import (
     ResultMessage,
     TextBlock,
     ToolUseBlock,
-    create_sdk_mcp_server,
-    tool,
 )
 
 from .workspace import Workspace
-from .cli import SpeakeasyCLI, CLIResult
-from .assessor import WorkspaceAssessor, AssessmentResult
+from .assessor import WorkspaceAssessor
 
 
 class SkillEvaluator:
-    """Evaluates skills using workspace-based agentic workflows."""
+    """Evaluates skills using workspace-based agentic workflows with standard tools."""
 
     def __init__(self, model: str = "claude-sonnet-4-20250514"):
         self.model = model
@@ -48,71 +48,85 @@ class SkillEvaluator:
         handler = handlers.get(test_type, self._eval_generation)
         return await handler(test)
 
+    async def _run_agent(
+        self,
+        workspace: Workspace,
+        task: str,
+        skill_content: str | None,
+        max_turns: int = 10,
+    ) -> tuple[str, list[dict], float | None]:
+        """Run agent with standard Claude Code tools in the workspace."""
+        system_prompt = self._build_system_prompt(skill_content, workspace.base_dir)
+
+        options = ClaudeAgentOptions(
+            model=self.model,
+            system_prompt=system_prompt,
+            max_turns=max_turns,
+            cwd=workspace.base_dir,
+            # Use standard Claude Code tools
+            allowed_tools=["Bash", "Read", "Write", "Glob", "Grep"],
+            # Auto-accept file edits and bash commands in the workspace
+            permission_mode="bypassPermissions",
+        )
+
+        tool_calls = []
+        agent_output = ""
+        total_cost = None
+
+        async with ClaudeSDKClient(options=options) as client:
+            await client.query(task)
+
+            async for msg in client.receive_response():
+                if isinstance(msg, AssistantMessage):
+                    for block in msg.content:
+                        if isinstance(block, TextBlock):
+                            agent_output += block.text
+                        elif isinstance(block, ToolUseBlock):
+                            tool_calls.append({
+                                "name": block.name,
+                                "input": self._summarize_tool_input(block.name, block.input),
+                            })
+                elif isinstance(msg, ResultMessage):
+                    if msg.total_cost_usd:
+                        total_cost = msg.total_cost_usd
+
+        return agent_output, tool_calls, total_cost
+
+    def _summarize_tool_input(self, tool_name: str, tool_input: Any) -> Any:
+        """Summarize tool input for logging (truncate long content)."""
+        if isinstance(tool_input, dict):
+            result = {}
+            for k, v in tool_input.items():
+                if isinstance(v, str) and len(v) > 200:
+                    result[k] = v[:200] + "..."
+                else:
+                    result[k] = v
+            return result
+        return tool_input
+
     async def _eval_generation(self, test: dict[str, Any]) -> dict[str, Any]:
         """Evaluate SDK generation with a skill-guided agent."""
         skill_name = test["skill"]
         skill_content = self.load_skill(skill_name)
         spec_content = test.get("spec")
         target = test.get("target", "typescript")
-        task = test.get("task", f"Generate a {target} SDK from the provided OpenAPI spec")
+        task = test.get("task", f"Generate a {target} SDK from the OpenAPI spec at openapi.yaml using the Speakeasy CLI")
 
         if not spec_content:
             return {"skill": skill_name, "type": "generation", "passed": False, "error": "No spec provided"}
 
         with Workspace() as workspace:
-            # Setup workspace with the spec
             workspace.setup(spec_content)
-            cli = SpeakeasyCLI(workspace.base_dir)
-
-            # Check CLI availability
-            if not await cli.is_available():
-                return {"skill": skill_name, "type": "generation", "passed": False, "error": "speakeasy CLI not available"}
-
-            # Create tools for the agent
-            tools = self._create_workspace_tools(workspace, cli)
-            mcp_server = create_sdk_mcp_server(
-                name="workspace",
-                version="1.0.0",
-                tools=tools,
-            )
-
-            # Build system prompt with skill context
-            system_prompt = self._build_system_prompt(skill_content, workspace.base_dir)
-
-            # Run the agent
-            options = ClaudeAgentOptions(
-                model=self.model,
-                system_prompt=system_prompt,
-                max_turns=10,
-                mcp_servers={"workspace": mcp_server},
-                allowed_tools=[
-                    "mcp__workspace__read_file",
-                    "mcp__workspace__write_file",
-                    "mcp__workspace__list_files",
-                    "mcp__workspace__speakeasy_quickstart",
-                    "mcp__workspace__speakeasy_run",
-                    "mcp__workspace__speakeasy_lint",
-                    "mcp__workspace__speakeasy_suggest",
-                    "mcp__workspace__speakeasy_overlay_apply",
-                ],
-            )
-
-            tool_calls = []
-            agent_output = ""
 
             try:
-                async with ClaudeSDKClient(options=options) as client:
-                    await client.query(task)
-
-                    async for msg in client.receive_response():
-                        if isinstance(msg, AssistantMessage):
-                            for block in msg.content:
-                                if isinstance(block, TextBlock):
-                                    agent_output += block.text
-                                elif isinstance(block, ToolUseBlock):
-                                    tool_calls.append({"name": block.name, "input": block.input})
+                agent_output, tool_calls, cost = await self._run_agent(
+                    workspace, task, skill_content, max_turns=10
+                )
             except Exception as e:
                 return {"skill": skill_name, "type": "generation", "passed": False, "error": str(e)}
+
+            # Check if speakeasy commands were used
+            speakeasy_commands = self._extract_speakeasy_commands(tool_calls)
 
             # Assess the result
             assessor = WorkspaceAssessor(workspace.base_dir)
@@ -126,7 +140,9 @@ class SkillEvaluator:
                 "checks": assessment.checks,
                 "summary": assessment.summary,
                 "tool_calls": tool_calls,
+                "speakeasy_commands": speakeasy_commands,
                 "changes": workspace.get_changes(),
+                "cost_usd": cost,
             }
 
     async def _eval_overlay(self, test: dict[str, Any]) -> dict[str, Any]:
@@ -134,7 +150,7 @@ class SkillEvaluator:
         skill_name = test["skill"]
         skill_content = self.load_skill(skill_name)
         spec_content = test.get("spec")
-        task = test.get("task", "Create an overlay to improve the SDK naming")
+        task = test.get("task", "Create an overlay to improve the SDK naming for the OpenAPI spec at openapi.yaml")
         expected_extensions = test.get("expected_extensions", [])
 
         if not spec_content:
@@ -142,53 +158,27 @@ class SkillEvaluator:
 
         with Workspace() as workspace:
             workspace.setup(spec_content)
-            cli = SpeakeasyCLI(workspace.base_dir)
-
-            if not await cli.is_available():
-                return {"skill": skill_name, "type": "overlay", "passed": False, "error": "speakeasy CLI not available"}
-
-            tools = self._create_workspace_tools(workspace, cli)
-            mcp_server = create_sdk_mcp_server(
-                name="workspace",
-                version="1.0.0",
-                tools=tools,
-            )
-
-            system_prompt = self._build_system_prompt(skill_content, workspace.base_dir)
-
-            options = ClaudeAgentOptions(
-                model=self.model,
-                system_prompt=system_prompt,
-                max_turns=10,
-                mcp_servers={"workspace": mcp_server},
-                allowed_tools=[
-                    "mcp__workspace__read_file",
-                    "mcp__workspace__write_file",
-                    "mcp__workspace__list_files",
-                    "mcp__workspace__speakeasy_lint",
-                    "mcp__workspace__speakeasy_suggest",
-                    "mcp__workspace__speakeasy_overlay_apply",
-                    "mcp__workspace__speakeasy_overlay_validate",
-                ],
-            )
-
-            tool_calls = []
 
             try:
-                async with ClaudeSDKClient(options=options) as client:
-                    await client.query(task)
-
-                    async for msg in client.receive_response():
-                        if isinstance(msg, AssistantMessage):
-                            for block in msg.content:
-                                if isinstance(block, ToolUseBlock):
-                                    tool_calls.append({"name": block.name, "input": block.input})
+                agent_output, tool_calls, cost = await self._run_agent(
+                    workspace, task, skill_content, max_turns=10
+                )
             except Exception as e:
                 return {"skill": skill_name, "type": "overlay", "passed": False, "error": str(e)}
+
+            speakeasy_commands = self._extract_speakeasy_commands(tool_calls)
 
             # Find and assess overlay files
             overlay_files = workspace.list_files("**/*.yaml")
             overlay_files = [f for f in overlay_files if "overlay" in f.lower() or f.startswith("overlays/")]
+
+            if not overlay_files:
+                # Check if overlay content was written to any yaml file
+                all_yaml = workspace.list_files("**/*.yaml")
+                for f in all_yaml:
+                    content = workspace.read_file(f) or ""
+                    if "overlay:" in content and "actions:" in content:
+                        overlay_files.append(f)
 
             if not overlay_files:
                 return {
@@ -197,6 +187,8 @@ class SkillEvaluator:
                     "passed": False,
                     "error": "No overlay file created",
                     "tool_calls": tool_calls,
+                    "speakeasy_commands": speakeasy_commands,
+                    "cost_usd": cost,
                 }
 
             assessor = WorkspaceAssessor(workspace.base_dir)
@@ -230,65 +222,32 @@ class SkillEvaluator:
                 "passed": all_passed,
                 "overlays": overlay_results,
                 "tool_calls": tool_calls,
+                "speakeasy_commands": speakeasy_commands,
+                "cost_usd": cost,
             }
 
     async def _eval_diagnosis(self, test: dict[str, Any]) -> dict[str, Any]:
-        """Evaluate diagnosis of generation failures."""
+        """Evaluate diagnosis of generation issues."""
         skill_name = test["skill"]
         skill_content = self.load_skill(skill_name)
         spec_content = test.get("spec")
         expected_issues = test.get("expected_issues", [])
-        task = test.get("task", "Diagnose why SDK generation is failing and suggest fixes")
+        task = test.get("task", "Analyze the OpenAPI spec at openapi.yaml and diagnose any issues that would affect SDK generation quality")
 
         if not spec_content:
             return {"skill": skill_name, "type": "diagnosis", "passed": False, "error": "No spec provided"}
 
         with Workspace() as workspace:
             workspace.setup(spec_content)
-            cli = SpeakeasyCLI(workspace.base_dir)
-
-            if not await cli.is_available():
-                return {"skill": skill_name, "type": "diagnosis", "passed": False, "error": "speakeasy CLI not available"}
-
-            tools = self._create_workspace_tools(workspace, cli)
-            mcp_server = create_sdk_mcp_server(
-                name="workspace",
-                version="1.0.0",
-                tools=tools,
-            )
-
-            system_prompt = self._build_system_prompt(skill_content, workspace.base_dir)
-
-            options = ClaudeAgentOptions(
-                model=self.model,
-                system_prompt=system_prompt,
-                max_turns=10,
-                mcp_servers={"workspace": mcp_server},
-                allowed_tools=[
-                    "mcp__workspace__read_file",
-                    "mcp__workspace__write_file",
-                    "mcp__workspace__list_files",
-                    "mcp__workspace__speakeasy_lint",
-                    "mcp__workspace__speakeasy_run",
-                ],
-            )
-
-            agent_output = ""
-            tool_calls = []
 
             try:
-                async with ClaudeSDKClient(options=options) as client:
-                    await client.query(task)
-
-                    async for msg in client.receive_response():
-                        if isinstance(msg, AssistantMessage):
-                            for block in msg.content:
-                                if isinstance(block, TextBlock):
-                                    agent_output += block.text
-                                elif isinstance(block, ToolUseBlock):
-                                    tool_calls.append({"name": block.name, "input": block.input})
+                agent_output, tool_calls, cost = await self._run_agent(
+                    workspace, task, skill_content, max_turns=10
+                )
             except Exception as e:
                 return {"skill": skill_name, "type": "diagnosis", "passed": False, "error": str(e)}
+
+            speakeasy_commands = self._extract_speakeasy_commands(tool_calls)
 
             # Check if expected issues were identified
             checks = []
@@ -304,7 +263,9 @@ class SkillEvaluator:
                 "passed": passed,
                 "expected_issues": checks,
                 "tool_calls": tool_calls,
+                "speakeasy_commands": speakeasy_commands,
                 "output_length": len(agent_output),
+                "cost_usd": cost,
             }
 
     async def _eval_workflow(self, test: dict[str, Any]) -> dict[str, Any]:
@@ -313,73 +274,37 @@ class SkillEvaluator:
         skill_content = self.load_skill(skill_name)
         spec_content = test.get("spec")
         steps = test.get("steps", [])
-        task = test.get("task", "Complete the SDK generation workflow")
+        task = test.get("task", "Complete the SDK generation workflow for the OpenAPI spec at openapi.yaml")
 
         if not spec_content:
             return {"skill": skill_name, "type": "workflow", "passed": False, "error": "No spec provided"}
 
         with Workspace() as workspace:
             workspace.setup(spec_content)
-            cli = SpeakeasyCLI(workspace.base_dir)
-
-            if not await cli.is_available():
-                return {"skill": skill_name, "type": "workflow", "passed": False, "error": "speakeasy CLI not available"}
-
-            tools = self._create_workspace_tools(workspace, cli)
-            mcp_server = create_sdk_mcp_server(
-                name="workspace",
-                version="1.0.0",
-                tools=tools,
-            )
-
-            system_prompt = self._build_system_prompt(skill_content, workspace.base_dir)
-
-            options = ClaudeAgentOptions(
-                model=self.model,
-                system_prompt=system_prompt,
-                max_turns=15,
-                mcp_servers={"workspace": mcp_server},
-                allowed_tools=[
-                    "mcp__workspace__read_file",
-                    "mcp__workspace__write_file",
-                    "mcp__workspace__list_files",
-                    "mcp__workspace__speakeasy_quickstart",
-                    "mcp__workspace__speakeasy_run",
-                    "mcp__workspace__speakeasy_lint",
-                    "mcp__workspace__speakeasy_suggest",
-                    "mcp__workspace__speakeasy_overlay_apply",
-                    "mcp__workspace__speakeasy_overlay_validate",
-                ],
-            )
-
-            tool_calls = []
 
             try:
-                async with ClaudeSDKClient(options=options) as client:
-                    await client.query(task)
-
-                    async for msg in client.receive_response():
-                        if isinstance(msg, AssistantMessage):
-                            for block in msg.content:
-                                if isinstance(block, ToolUseBlock):
-                                    tool_calls.append({"name": block.name, "input": block.input})
+                agent_output, tool_calls, cost = await self._run_agent(
+                    workspace, task, skill_content, max_turns=15
+                )
             except Exception as e:
                 return {"skill": skill_name, "type": "workflow", "passed": False, "error": str(e)}
+
+            speakeasy_commands = self._extract_speakeasy_commands(tool_calls)
 
             # Verify expected steps were performed
             step_results = []
             for step in steps:
                 step_name = step.get("name", "")
-                required_tool = step.get("tool")
+                required_command = step.get("command")  # e.g., "speakeasy lint"
                 required_file = step.get("creates_file")
 
                 step_passed = True
                 details = []
 
-                if required_tool:
-                    tool_used = any(required_tool in tc["name"] for tc in tool_calls)
-                    step_passed = step_passed and tool_used
-                    details.append(f"tool {required_tool}: {'used' if tool_used else 'not used'}")
+                if required_command:
+                    cmd_used = any(required_command in cmd for cmd in speakeasy_commands)
+                    step_passed = step_passed and cmd_used
+                    details.append(f"command '{required_command}': {'used' if cmd_used else 'not used'}")
 
                 if required_file:
                     file_exists = workspace.file_exists(required_file)
@@ -400,17 +325,40 @@ class SkillEvaluator:
                 "passed": all_passed,
                 "steps": step_results,
                 "tool_calls": tool_calls,
+                "speakeasy_commands": speakeasy_commands,
                 "changes": workspace.get_changes(),
+                "cost_usd": cost,
             }
+
+    def _extract_speakeasy_commands(self, tool_calls: list[dict]) -> list[str]:
+        """Extract speakeasy commands from Bash tool calls."""
+        commands = []
+        for tc in tool_calls:
+            if tc["name"] == "Bash":
+                cmd = tc.get("input", {})
+                if isinstance(cmd, dict):
+                    cmd = cmd.get("command", "")
+                if isinstance(cmd, str) and "speakeasy" in cmd:
+                    commands.append(cmd)
+        return commands
 
     def _build_system_prompt(self, skill_content: str | None, workspace_dir: Path) -> str:
         """Build system prompt with skill context and workspace info."""
         prompt = f"""You are an expert at SDK generation using the Speakeasy CLI.
 
-You have access to a workspace at: {workspace_dir}
+Your working directory is: {workspace_dir}
 The workspace contains an OpenAPI spec at openapi.yaml.
 
-Use the provided tools to accomplish the task. Always use --output console for speakeasy commands.
+You have access to standard tools: Bash, Read, Write, Glob, Grep.
+Use the Bash tool to run speakeasy CLI commands.
+
+Key speakeasy commands:
+- speakeasy quickstart -s <spec> -t <target> -n <name> -p <package> --skip-interactive --output console
+- speakeasy run --output console
+- speakeasy lint openapi -s <spec> --non-interactive
+- speakeasy suggest operation-ids -s <spec> -o <overlay>
+- speakeasy overlay apply -s <spec> -o <overlay> --out <output>
+- speakeasy overlay validate -o <overlay>
 """
         if skill_content:
             prompt += f"""
@@ -421,77 +369,3 @@ The following skill provides guidance for this task:
 {skill_content}
 """
         return prompt
-
-    def _create_workspace_tools(self, workspace: Workspace, cli: SpeakeasyCLI) -> list:
-        """Create MCP tools for workspace and CLI operations."""
-
-        @tool("read_file", "Read a file from the workspace", {"path": str})
-        async def read_file(args: dict[str, Any]) -> dict[str, Any]:
-            content = workspace.read_file(args["path"])
-            if content is None:
-                return {"content": [{"type": "text", "text": f"File not found: {args['path']}"}], "is_error": True}
-            return {"content": [{"type": "text", "text": content}]}
-
-        @tool("write_file", "Write a file to the workspace", {"path": str, "content": str})
-        async def write_file(args: dict[str, Any]) -> dict[str, Any]:
-            workspace.write_file(args["path"], args["content"])
-            return {"content": [{"type": "text", "text": f"Wrote {len(args['content'])} bytes to {args['path']}"}]}
-
-        @tool("list_files", "List files in the workspace", {"pattern": str})
-        async def list_files(args: dict[str, Any]) -> dict[str, Any]:
-            files = workspace.list_files(args.get("pattern", "**/*"))
-            return {"content": [{"type": "text", "text": "\n".join(files) if files else "No files found"}]}
-
-        @tool("speakeasy_quickstart", "Initialize a new SDK project", {"target": str, "sdk_name": str, "package_name": str})
-        async def speakeasy_quickstart(args: dict[str, Any]) -> dict[str, Any]:
-            result = await cli.quickstart(
-                spec="openapi.yaml",
-                target=args["target"],
-                sdk_name=args["sdk_name"],
-                package_name=args["package_name"],
-            )
-            return {"content": [{"type": "text", "text": f"Exit code: {result.exit_code}\n{result.output}"}]}
-
-        @tool("speakeasy_run", "Regenerate SDK from workflow configuration", {})
-        async def speakeasy_run(args: dict[str, Any]) -> dict[str, Any]:
-            result = await cli.generate()
-            return {"content": [{"type": "text", "text": f"Exit code: {result.exit_code}\n{result.output}"}]}
-
-        @tool("speakeasy_lint", "Lint an OpenAPI spec", {"spec": str})
-        async def speakeasy_lint(args: dict[str, Any]) -> dict[str, Any]:
-            result = await cli.lint(args.get("spec", "openapi.yaml"))
-            return {"content": [{"type": "text", "text": f"Exit code: {result.exit_code}\n{result.output}"}]}
-
-        @tool("speakeasy_suggest", "Generate AI-suggested operation IDs", {"spec": str, "output": str})
-        async def speakeasy_suggest(args: dict[str, Any]) -> dict[str, Any]:
-            result = await cli.suggest_operation_ids(
-                args.get("spec", "openapi.yaml"),
-                args.get("output", "overlays/naming.yaml"),
-            )
-            return {"content": [{"type": "text", "text": f"Exit code: {result.exit_code}\n{result.output}"}]}
-
-        @tool("speakeasy_overlay_apply", "Apply an overlay to a spec", {"spec": str, "overlay": str, "output": str})
-        async def speakeasy_overlay_apply(args: dict[str, Any]) -> dict[str, Any]:
-            result = await cli.overlay_apply(
-                args.get("spec", "openapi.yaml"),
-                args["overlay"],
-                args.get("output", "openapi-modified.yaml"),
-            )
-            return {"content": [{"type": "text", "text": f"Exit code: {result.exit_code}\n{result.output}"}]}
-
-        @tool("speakeasy_overlay_validate", "Validate an overlay file", {"overlay": str})
-        async def speakeasy_overlay_validate(args: dict[str, Any]) -> dict[str, Any]:
-            result = await cli.overlay_validate(args["overlay"])
-            return {"content": [{"type": "text", "text": f"Exit code: {result.exit_code}\n{result.output}"}]}
-
-        return [
-            read_file,
-            write_file,
-            list_files,
-            speakeasy_quickstart,
-            speakeasy_run,
-            speakeasy_lint,
-            speakeasy_suggest,
-            speakeasy_overlay_apply,
-            speakeasy_overlay_validate,
-        ]

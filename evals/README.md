@@ -134,7 +134,6 @@ evals/
 │   ├── runner.py       # Test orchestration
 │   ├── evaluator.py    # Claude Agent SDK integration
 │   ├── workspace.py    # Isolated workspace management
-│   ├── cli.py          # Speakeasy CLI wrapper
 │   ├── assessor.py     # Workspace state assessment
 │   ├── assertions.py   # Output validation
 │   └── reporter.py     # Results formatting
@@ -167,21 +166,23 @@ evals/
 
 4. **Results Reporting**: Pass/fail with detailed checks and tool call logs
 
-## Available MCP Tools
+## How Skills Are Tested
 
-The agent has access to these workspace tools:
+The agent uses **standard Claude Code tools** (not custom wrappers):
 
-| Tool | Description |
-|------|-------------|
-| `read_file` | Read a file from the workspace |
-| `write_file` | Write a file to the workspace |
-| `list_files` | List files matching a glob pattern |
-| `speakeasy_quickstart` | Initialize a new SDK project |
-| `speakeasy_run` | Regenerate SDK from workflow |
-| `speakeasy_lint` | Lint an OpenAPI spec |
-| `speakeasy_suggest` | Generate AI-suggested operation IDs |
-| `speakeasy_overlay_apply` | Apply an overlay to a spec |
-| `speakeasy_overlay_validate` | Validate an overlay file |
+| Tool | Usage |
+|------|-------|
+| `Bash` | Run speakeasy CLI commands |
+| `Read` | Read files from workspace |
+| `Write` | Create/modify files |
+| `Glob` | Find files by pattern |
+| `Grep` | Search file contents |
+
+This tests whether skills effectively guide the agent to:
+1. Use the correct speakeasy commands
+2. Pass appropriate flags (e.g., `--skip-interactive`, `--output console`)
+3. Create valid overlays and configurations
+4. Complete multi-step workflows correctly
 
 ## Development
 
