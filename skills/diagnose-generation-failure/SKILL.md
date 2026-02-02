@@ -58,6 +58,51 @@ When SDK generation fails, diagnose the root cause and determine the fix strateg
 - **Do NOT** modify source spec without asking
 - **Do NOT** assume you can fix structural problems
 
+## Troubleshooting Tree
+
+```
+PROBLEM
+  │
+  ├─ ResponseValidationError at runtime?
+  │    └─ SDK types don't match server responses
+  │         ├─ Run contract tests to identify mismatches
+  │         └─ Fix spec or create overlay to correct types
+  │
+  ├─ SDK doesn't match live API behavior?
+  │    ├─ Spec may have drifted from API
+  │    │    → Run contract tests to detect drift
+  │    └─ Third-party spec may be inaccurate
+  │         → Validate with contract testing before trusting
+  │
+  ├─ Type mismatch errors in generated SDK?
+  │    ├─ At compile time → Check spec schema definitions
+  │    └─ At runtime → Server returns unexpected types
+  │                    → Contract testing required
+  │
+  └─ Enum value not recognized?
+       └─ API returned value not in spec enum
+            ├─ Add missing value to spec/overlay
+            └─ Or use open enums for anti-fragility
+```
+
+## Working with Large OpenAPI Specs
+
+Use `yq` (YAML) or `jq` (JSON) to inspect specs without loading full content:
+
+```bash
+# List all paths
+yq '.paths | keys' spec.yaml
+
+# Inspect a specific endpoint
+yq '.paths["/users/{id}"]' spec.yaml
+
+# List all schema names
+yq '.components.schemas | keys' spec.yaml
+
+# List all operationIds
+yq '[.paths[][].operationId // empty] | unique' spec.yaml
+```
+
 ## Strategy Document
 
 For complex issues, produce a document:
@@ -74,3 +119,9 @@ For complex issues, produce a document:
 ### Recommended Approach
 [Your recommendation]
 ```
+
+## Related Skills
+
+- `manage-openapi-overlays` - Fix issues with overlays
+- `setup-sdk-testing` - Contract testing for validation
+- `writing-openapi-specs` - Spec design best practices

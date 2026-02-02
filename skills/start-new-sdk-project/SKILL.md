@@ -131,6 +131,16 @@ speakeasy quickstart --skip-interactive --output console \
 2. Add more targets to `.speakeasy/workflow.yaml` for multi-language support
 3. Run `speakeasy run` to regenerate after spec or config changes
 
+## Essential CLI Commands
+
+| Command | Purpose |
+|---------|---------|
+| `speakeasy quickstart ...` | Initialize new SDK project |
+| `speakeasy run -y --output console` | Regenerate SDK from workflow |
+| `speakeasy lint openapi --non-interactive -s spec.yaml` | Validate OpenAPI spec |
+| `speakeasy auth login` | Authenticate with Speakeasy |
+| `speakeasy pull --list --format json` | List registry sources |
+
 ## Troubleshooting
 
 | Error | Cause | Solution |
@@ -138,3 +148,11 @@ speakeasy quickstart --skip-interactive --output console \
 | Workflow already exists | `.speakeasy/workflow.yaml` already present | Run `speakeasy run` to regenerate the existing SDK instead |
 | Unauthorized | Missing or invalid API key | Run `speakeasy auth login` or set `SPEAKEASY_API_KEY` |
 | Schema not found | Invalid path, URL, or source name | Verify path exists or use `speakeasy pull --list` for sources |
+
+## Related Skills
+
+- `diagnose-generation-failure` - When generation fails
+- `manage-openapi-overlays` - Customize spec with overlays
+- `generate-sdk-for-python` - Python-specific configuration
+- `generate-sdk-for-typescript` - TypeScript-specific configuration
+- `generate-sdk-for-go` - Go-specific configuration
