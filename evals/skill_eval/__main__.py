@@ -11,6 +11,7 @@ from rich.panel import Panel
 
 from .runner import EvalRunner
 from .reporter import Reporter
+from .tracker import EvalTracker
 
 console = Console()
 
@@ -38,6 +39,7 @@ def cli():
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
 @click.option("--model", default="claude-sonnet-4-20250514", help="Model to use for agent")
 @click.option("--max-concurrent", default=3, help="Max concurrent test runs")
+@click.option("--track/--no-track", default=True, help="Track results in VCS history")
 def run(
     suite: str,
     skill: str | None,
@@ -46,6 +48,7 @@ def run(
     verbose: bool,
     model: str,
     max_concurrent: int,
+    track: bool,
 ):
     """Run skill evaluations.
 
@@ -54,14 +57,17 @@ def run(
         skill-eval run --suite generation
         skill-eval run --skill start-new-sdk-project
         skill-eval run --test typescript -v
+        skill-eval run --no-track  # Skip history tracking
     """
     runner = EvalRunner(model=model, verbose=verbose)
     reporter = Reporter(console)
+    tracker = EvalTracker() if track else None
 
     console.print(Panel.fit(
         f"[bold]Running {suite} evaluations[/bold]\n"
         f"Model: {model}\n"
-        f"Concurrent: {max_concurrent}",
+        f"Concurrent: {max_concurrent}\n"
+        f"Tracking: {'enabled' if track else 'disabled'}",
         title="Skill Eval"
     ))
 
@@ -75,9 +81,16 @@ def run(
 
     reporter.print_results(results)
 
+    # Track results
+    if tracker:
+        results_file = tracker.save_results(results, model)
+        tracker.update_history(results, model, results_file)
+        console.print(f"\n[dim]Results tracked in {results_file.name}[/dim]")
+        console.print(f"[dim]History updated in results/HISTORY.md[/dim]")
+
     if output:
         Path(output).write_text(json.dumps(results, indent=2, default=str))
-        console.print(f"\n[dim]Results written to {output}[/dim]")
+        console.print(f"\n[dim]Results also written to {output}[/dim]")
 
 
 @cli.command()
@@ -109,11 +122,27 @@ def single(test_name: str, verbose: bool, model: str, output: str | None):
     if result.get("error"):
         console.print(f"[red]Error: {result['error']}[/red]")
 
+    # Show skills info
+    if result.get("skills_installed"):
+        console.print(f"\n[dim]Skills installed: {result['skills_installed']}[/dim]")
+    if result.get("skills_invoked"):
+        console.print(f"[cyan]Skills invoked: {', '.join(result['skills_invoked'])}[/cyan]")
+    if "expected_skill_invoked" in result:
+        if result["expected_skill_invoked"]:
+            console.print(f"[green]✓ Expected skill was invoked[/green]")
+        else:
+            console.print(f"[yellow]! Expected skill was NOT invoked[/yellow]")
+
     if result.get("checks"):
         console.print("\n[bold]Checks:[/bold]")
         for check in result["checks"]:
             status = "[green]✓[/green]" if check.get("passed") else "[red]✗[/red]"
             console.print(f"  {status} {check.get('name', check.get('details', ''))}")
+
+    if result.get("speakeasy_commands"):
+        console.print(f"\n[bold]Speakeasy commands used:[/bold]")
+        for cmd in result["speakeasy_commands"]:
+            console.print(f"  $ {cmd[:80]}{'...' if len(cmd) > 80 else ''}")
 
     if result.get("tool_calls"):
         console.print(f"\n[dim]Tool calls: {len(result['tool_calls'])}[/dim]")
@@ -128,6 +157,9 @@ def single(test_name: str, verbose: bool, model: str, output: str | None):
             if verbose:
                 for f in changes["added"][:10]:
                     console.print(f"  + {f}")
+
+    if result.get("cost_usd"):
+        console.print(f"\n[dim]Cost: ${result['cost_usd']:.4f}[/dim]")
 
     if output:
         Path(output).write_text(json.dumps(result, indent=2, default=str))
@@ -216,6 +248,71 @@ def check():
     else:
         console.print("[red]✗[/red] Skills directory not found")
 
+    # Check results directory
+    results_dir = Path(__file__).parent.parent / "results"
+    if results_dir.exists():
+        result_files = list(results_dir.glob("*.json"))
+        console.print(f"[green]✓[/green] {len(result_files)} previous eval results")
+    else:
+        console.print("[dim]No previous eval results[/dim]")
+
+
+@cli.command()
+@click.option("-n", "--count", default=10, help="Number of recent results to analyze")
+def trend(count: int):
+    """Show evaluation trends from recent runs."""
+    tracker = EvalTracker()
+    summary = tracker.get_trend_summary(count)
+
+    if "error" in summary:
+        console.print(f"[yellow]{summary['error']}[/yellow]")
+        return
+
+    console.print(Panel.fit(
+        f"[bold]Evaluation Trends[/bold]\n"
+        f"Based on {summary['count']} recent runs",
+        title="Trend Analysis"
+    ))
+
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("Metric")
+    table.add_column("Latest")
+    table.add_column("Average")
+    table.add_column("Trend (recent→old)")
+
+    # Pass rate
+    pr = summary["pass_rate"]
+    trend_str = " → ".join(f"{r:.0%}" for r in pr["trend"][:5])
+    table.add_row(
+        "Pass Rate",
+        f"{pr['latest']:.1%}",
+        f"{pr['avg']:.1%}",
+        trend_str
+    )
+
+    # Skill invocation rate
+    si = summary["skill_invocation_rate"]
+    trend_str = " → ".join(f"{r:.0%}" for r in si["trend"][:5])
+    table.add_row(
+        "Skill Invocation",
+        f"{si['latest']:.1%}",
+        f"{si['avg']:.1%}",
+        trend_str
+    )
+
+    # Cost
+    cost = summary["cost_usd"]
+    trend_str = " → ".join(f"${c:.2f}" for c in cost["trend"][:5])
+    table.add_row(
+        "Cost per Run",
+        f"${cost['latest']:.4f}",
+        f"${cost['avg']:.4f}",
+        trend_str
+    )
+
+    console.print(table)
+    console.print("\n[dim]See results/HISTORY.md for full history[/dim]")
+
 
 @cli.command()
 @click.option("--suite", type=click.Choice(["generation", "overlay", "diagnosis", "workflow"]), required=True)
@@ -233,7 +330,6 @@ def compare(suite: str, model: str):
 
     console.print("[bold]Running WITHOUT skills...[/bold]")
     with console.status("[yellow]Testing base model..."):
-        # Would need to modify evaluator to support this properly
         results_without = asyncio.run(runner.run(suite=suite, with_skills=False))
 
     console.print("\n[bold]Running WITH skills...[/bold]")

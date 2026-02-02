@@ -3,8 +3,8 @@
 Uses the SDK's native skill loading mechanism to evaluate whether skills
 effectively guide the agent to use the Speakeasy CLI correctly.
 
-Skills are loaded from the workspace's .claude/skills/ directory using
-setting_sources=["project"], matching how Claude Code discovers skills.
+All skills are installed in each workspace's .claude/skills/ directory,
+matching a real Claude Code environment where all skills are available.
 """
 
 import shutil
@@ -31,24 +31,37 @@ class SkillEvaluator:
         self.model = model
         self.skills_dir = Path(__file__).parent.parent.parent / "skills"
 
-    def _setup_skill_in_workspace(self, workspace: Workspace, skill_name: str) -> bool:
-        """Copy skill to workspace's .claude/skills/ directory for SDK discovery."""
-        source_skill_dir = self.skills_dir / skill_name
-        if not source_skill_dir.exists():
-            return False
+    def _setup_all_skills_in_workspace(self, workspace: Workspace) -> int:
+        """Copy ALL skills to workspace's .claude/skills/ directory for SDK discovery.
 
-        # Create .claude/skills/{skill_name}/ in workspace
-        target_skill_dir = workspace.base_dir / ".claude" / "skills" / skill_name
-        target_skill_dir.mkdir(parents=True, exist_ok=True)
+        This matches a real Claude Code environment where all skills are available.
+        Returns the number of skills installed.
+        """
+        skills_installed = 0
+        target_skills_dir = workspace.base_dir / ".claude" / "skills"
+        target_skills_dir.mkdir(parents=True, exist_ok=True)
 
-        # Copy SKILL.md and any supporting files
-        for item in source_skill_dir.iterdir():
-            if item.is_file():
-                shutil.copy2(item, target_skill_dir / item.name)
-            elif item.is_dir():
-                shutil.copytree(item, target_skill_dir / item.name, dirs_exist_ok=True)
+        # Find all skill directories (those containing SKILL.md)
+        for skill_dir in self.skills_dir.iterdir():
+            if not skill_dir.is_dir():
+                continue
+            skill_md = skill_dir / "SKILL.md"
+            if not skill_md.exists():
+                continue
 
-        return True
+            # Copy skill to workspace
+            target_skill_dir = target_skills_dir / skill_dir.name
+            target_skill_dir.mkdir(parents=True, exist_ok=True)
+
+            for item in skill_dir.iterdir():
+                if item.is_file():
+                    shutil.copy2(item, target_skill_dir / item.name)
+                elif item.is_dir():
+                    shutil.copytree(item, target_skill_dir / item.name, dirs_exist_ok=True)
+
+            skills_installed += 1
+
+        return skills_installed
 
     async def evaluate(self, test: dict[str, Any]) -> dict[str, Any]:
         """Evaluate a single test case using a real workspace."""
@@ -70,7 +83,7 @@ class SkillEvaluator:
         task: str,
         max_turns: int = 10,
     ) -> tuple[str, list[dict], float | None]:
-        """Run agent with skills loaded from workspace .claude/skills/ directory."""
+        """Run agent with all skills loaded from workspace .claude/skills/ directory."""
         options = ClaudeAgentOptions(
             model=self.model,
             max_turns=max_turns,
@@ -118,9 +131,20 @@ class SkillEvaluator:
             return result
         return tool_input
 
+    def _extract_skill_invocations(self, tool_calls: list[dict]) -> list[str]:
+        """Extract which skills were invoked from Skill tool calls."""
+        skills = []
+        for tc in tool_calls:
+            if tc["name"] == "Skill":
+                skill_input = tc.get("input", {})
+                if isinstance(skill_input, dict):
+                    skill_name = skill_input.get("skill", skill_input.get("name", "unknown"))
+                    skills.append(skill_name)
+        return skills
+
     async def _eval_generation(self, test: dict[str, Any]) -> dict[str, Any]:
-        """Evaluate SDK generation with a skill-guided agent."""
-        skill_name = test["skill"]
+        """Evaluate SDK generation with skill-guided agent."""
+        skill_name = test["skill"]  # The skill we expect to be used
         spec_content = test.get("spec")
         target = test.get("target", "typescript")
         task = test.get("task", f"Generate a {target} SDK from the OpenAPI spec at openapi.yaml using the Speakeasy CLI")
@@ -131,9 +155,8 @@ class SkillEvaluator:
         with Workspace() as workspace:
             workspace.setup(spec_content)
 
-            # Setup skill in workspace for SDK discovery
-            if not self._setup_skill_in_workspace(workspace, skill_name):
-                return {"skill": skill_name, "type": "generation", "passed": False, "error": f"Skill not found: {skill_name}"}
+            # Setup ALL skills in workspace for SDK discovery
+            skills_installed = self._setup_all_skills_in_workspace(workspace)
 
             try:
                 agent_output, tool_calls, cost = await self._run_agent(
@@ -142,11 +165,12 @@ class SkillEvaluator:
             except Exception as e:
                 return {"skill": skill_name, "type": "generation", "passed": False, "error": str(e)}
 
+            # Check which skills were invoked
+            skills_invoked = self._extract_skill_invocations(tool_calls)
+            expected_skill_invoked = skill_name in skills_invoked
+
             # Check if speakeasy commands were used
             speakeasy_commands = self._extract_speakeasy_commands(tool_calls)
-
-            # Check if skill was invoked
-            skill_invoked = any(tc["name"] == "Skill" for tc in tool_calls)
 
             # Assess the result
             assessor = WorkspaceAssessor(workspace.base_dir)
@@ -159,7 +183,9 @@ class SkillEvaluator:
                 "passed": assessment.passed,
                 "checks": assessment.checks,
                 "summary": assessment.summary,
-                "skill_invoked": skill_invoked,
+                "skills_installed": skills_installed,
+                "skills_invoked": skills_invoked,
+                "expected_skill_invoked": expected_skill_invoked,
                 "tool_calls": tool_calls,
                 "speakeasy_commands": speakeasy_commands,
                 "changes": workspace.get_changes(),
@@ -167,7 +193,7 @@ class SkillEvaluator:
             }
 
     async def _eval_overlay(self, test: dict[str, Any]) -> dict[str, Any]:
-        """Evaluate overlay creation with a skill-guided agent."""
+        """Evaluate overlay creation with skill-guided agent."""
         skill_name = test["skill"]
         spec_content = test.get("spec")
         task = test.get("task", "Create an overlay to improve the SDK naming for the OpenAPI spec at openapi.yaml")
@@ -178,9 +204,7 @@ class SkillEvaluator:
 
         with Workspace() as workspace:
             workspace.setup(spec_content)
-
-            if not self._setup_skill_in_workspace(workspace, skill_name):
-                return {"skill": skill_name, "type": "overlay", "passed": False, "error": f"Skill not found: {skill_name}"}
+            skills_installed = self._setup_all_skills_in_workspace(workspace)
 
             try:
                 agent_output, tool_calls, cost = await self._run_agent(
@@ -189,8 +213,9 @@ class SkillEvaluator:
             except Exception as e:
                 return {"skill": skill_name, "type": "overlay", "passed": False, "error": str(e)}
 
+            skills_invoked = self._extract_skill_invocations(tool_calls)
+            expected_skill_invoked = skill_name in skills_invoked
             speakeasy_commands = self._extract_speakeasy_commands(tool_calls)
-            skill_invoked = any(tc["name"] == "Skill" for tc in tool_calls)
 
             # Find and assess overlay files
             overlay_files = workspace.list_files("**/*.yaml")
@@ -210,7 +235,9 @@ class SkillEvaluator:
                     "type": "overlay",
                     "passed": False,
                     "error": "No overlay file created",
-                    "skill_invoked": skill_invoked,
+                    "skills_installed": skills_installed,
+                    "skills_invoked": skills_invoked,
+                    "expected_skill_invoked": expected_skill_invoked,
                     "tool_calls": tool_calls,
                     "speakeasy_commands": speakeasy_commands,
                     "cost_usd": cost,
@@ -246,7 +273,9 @@ class SkillEvaluator:
                 "type": "overlay",
                 "passed": all_passed,
                 "overlays": overlay_results,
-                "skill_invoked": skill_invoked,
+                "skills_installed": skills_installed,
+                "skills_invoked": skills_invoked,
+                "expected_skill_invoked": expected_skill_invoked,
                 "tool_calls": tool_calls,
                 "speakeasy_commands": speakeasy_commands,
                 "cost_usd": cost,
@@ -264,9 +293,7 @@ class SkillEvaluator:
 
         with Workspace() as workspace:
             workspace.setup(spec_content)
-
-            if not self._setup_skill_in_workspace(workspace, skill_name):
-                return {"skill": skill_name, "type": "diagnosis", "passed": False, "error": f"Skill not found: {skill_name}"}
+            skills_installed = self._setup_all_skills_in_workspace(workspace)
 
             try:
                 agent_output, tool_calls, cost = await self._run_agent(
@@ -275,8 +302,9 @@ class SkillEvaluator:
             except Exception as e:
                 return {"skill": skill_name, "type": "diagnosis", "passed": False, "error": str(e)}
 
+            skills_invoked = self._extract_skill_invocations(tool_calls)
+            expected_skill_invoked = skill_name in skills_invoked
             speakeasy_commands = self._extract_speakeasy_commands(tool_calls)
-            skill_invoked = any(tc["name"] == "Skill" for tc in tool_calls)
 
             # Check if expected issues were identified
             checks = []
@@ -291,7 +319,9 @@ class SkillEvaluator:
                 "type": "diagnosis",
                 "passed": passed,
                 "expected_issues": checks,
-                "skill_invoked": skill_invoked,
+                "skills_installed": skills_installed,
+                "skills_invoked": skills_invoked,
+                "expected_skill_invoked": expected_skill_invoked,
                 "tool_calls": tool_calls,
                 "speakeasy_commands": speakeasy_commands,
                 "output_length": len(agent_output),
@@ -310,9 +340,7 @@ class SkillEvaluator:
 
         with Workspace() as workspace:
             workspace.setup(spec_content)
-
-            if not self._setup_skill_in_workspace(workspace, skill_name):
-                return {"skill": skill_name, "type": "workflow", "passed": False, "error": f"Skill not found: {skill_name}"}
+            skills_installed = self._setup_all_skills_in_workspace(workspace)
 
             try:
                 agent_output, tool_calls, cost = await self._run_agent(
@@ -321,8 +349,9 @@ class SkillEvaluator:
             except Exception as e:
                 return {"skill": skill_name, "type": "workflow", "passed": False, "error": str(e)}
 
+            skills_invoked = self._extract_skill_invocations(tool_calls)
+            expected_skill_invoked = skill_name in skills_invoked
             speakeasy_commands = self._extract_speakeasy_commands(tool_calls)
-            skill_invoked = any(tc["name"] == "Skill" for tc in tool_calls)
 
             # Verify expected steps were performed
             step_results = []
@@ -357,7 +386,9 @@ class SkillEvaluator:
                 "type": "workflow",
                 "passed": all_passed,
                 "steps": step_results,
-                "skill_invoked": skill_invoked,
+                "skills_installed": skills_installed,
+                "skills_invoked": skills_invoked,
+                "expected_skill_invoked": expected_skill_invoked,
                 "tool_calls": tool_calls,
                 "speakeasy_commands": speakeasy_commands,
                 "changes": workspace.get_changes(),
