@@ -16,6 +16,22 @@ Configure gen.yaml options for an existing Speakeasy SDK. Supports TypeScript, P
 
 > **For new SDK projects**: Use `start-new-sdk-project` skill instead. This skill is for configuring an existing SDK.
 
+## Language-Specific Guides
+
+For comprehensive configuration details, see the language-specific guides:
+
+| Language | Guide | Key Features |
+|----------|-------|--------------|
+| TypeScript | [content/languages/typescript.md](content/languages/typescript.md) | Zod validation, React Query, standalone functions, dual module format |
+| Python | [content/languages/python.md](content/languages/python.md) | Pydantic models, async modes (both/split), uv/poetry support |
+| Go | [content/languages/go.md](content/languages/go.md) | Response formats, interface generation, K8s integration |
+| Java | [content/languages/java.md](content/languages/java.md) | Builder pattern, Gradle customization, Maven Central publishing |
+| C# | [content/languages/csharp.md](content/languages/csharp.md) | Async/await, cancellation tokens, DI integration, NuGet |
+| PHP | [content/languages/php.md](content/languages/php.md) | Laravel integration, Guzzle config, Packagist publishing |
+| Ruby | [content/languages/ruby.md](content/languages/ruby.md) | Sorbet typing, Rails integration, RubyGems publishing |
+
+These guides include detailed configuration options, code examples, framework integrations, and publishing instructions.
+
 ## When to Use
 
 - Configuring language-specific gen.yaml options on an existing SDK

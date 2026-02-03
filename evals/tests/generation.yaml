@@ -17,8 +17,8 @@ tests:
     verify_gen_yaml: false  # gen.yaml sometimes missing due to Speakeasy bug
     max_turns: 25  # SDK generation needs more turns
     task: |
-      Generate a TypeScript SDK from the OpenAPI spec at openapi.yaml.
-      Run: speakeasy quickstart --skip-interactive --output console -s openapi.yaml -t typescript -n "PetstoreSDK" -p "petstore-sdk"
+      I have an OpenAPI spec at openapi.yaml. Generate a TypeScript SDK from it.
+      The SDK should be named "PetstoreSDK" with package name "petstore-sdk".
 
   - name: python-sdk-from-clean-spec
     skill: start-new-sdk-project  # Primary SDK generation skill
@@ -31,8 +31,8 @@ tests:
     verify_gen_yaml: false  # gen.yaml sometimes missing due to Speakeasy bug
     max_turns: 25  # SDK generation needs more turns
     task: |
-      Generate a Python SDK from the OpenAPI spec at openapi.yaml.
-      Run: speakeasy quickstart --skip-interactive --output console -s openapi.yaml -t python -n "PetstoreSDK" -p "petstore-sdk"
+      Create a Python SDK from openapi.yaml for our Petstore API.
+      Name it "PetstoreSDK" with package "petstore-sdk".
 
   - name: go-sdk-from-clean-spec
     skill: start-new-sdk-project  # Primary SDK generation skill
@@ -45,8 +45,8 @@ tests:
     verify_gen_yaml: false  # gen.yaml sometimes missing due to Speakeasy bug
     max_turns: 25  # SDK generation needs more turns
     task: |
-      Generate a Go SDK from the OpenAPI spec at openapi.yaml.
-      Run: speakeasy quickstart --skip-interactive --output console -s openapi.yaml -t go -n "PetstoreSDK" -p "petstore-sdk"
+      Build a Go client library from the API spec in openapi.yaml.
+      Call it "PetstoreSDK" with package "petstore-sdk".
 
   - name: typescript-sdk-with-pagination
     skill: manage-openapi-overlays
@@ -59,10 +59,9 @@ tests:
     verify_gen_yaml: false  # gen.yaml sometimes missing due to Speakeasy bug
     max_turns: 30  # More complex - overlay + generation
     task: |
-      Generate a TypeScript SDK from this paginated API spec at openapi.yaml.
-      First create an overlay file that adds x-speakeasy-pagination extensions for the list endpoints,
-      then run: speakeasy quickstart --skip-interactive --output console -s openapi.yaml -t typescript -n "PaginatedSDK" -p "paginated-sdk"
-      Do not edit the spec directly - create an overlay file.
+      Generate a TypeScript SDK from the API spec at openapi.yaml. The API has paginated list endpoints.
+      Configure pagination support so SDK users get automatic page iteration.
+      Name it "PaginatedSDK" with package "paginated-sdk".
 
   - name: typescript-sdk-with-hooks
     skill: customize-sdk-hooks
@@ -76,9 +75,9 @@ tests:
     verify_hooks: true
     max_turns: 30  # Generation + hooks customization
     task: |
-      Generate a TypeScript SDK and implement custom SDK hooks.
-      First run: speakeasy quickstart --skip-interactive --output console -s openapi.yaml -t typescript -n "HooksSDK" -p "hooks-sdk"
-      Then add a beforeRequest hook in the hooks directory that adds a custom header.
+      Create a TypeScript SDK from openapi.yaml called "HooksSDK" (package: hooks-sdk).
+      I need to add a custom X-Request-ID header to every API request.
+      Set up the SDK with hooks to make this possible.
 
   - name: typescript-sdk-with-mcp
     skill: generate-mcp-server
@@ -92,9 +91,8 @@ tests:
     verify_mcp: true
     max_turns: 30  # Generation + MCP config
     task: |
-      Generate a TypeScript SDK with MCP server support.
-      Run: speakeasy quickstart --skip-interactive --output console -s openapi.yaml -t typescript -n "McpSDK" -p "mcp-sdk"
-      Enable MCP server generation in gen.yaml by setting enableMCPServer: true.
+      Generate a TypeScript SDK from openapi.yaml named "McpSDK" (package: mcp-sdk).
+      I want to use this API with AI assistants like Claude, so enable MCP server support.
 
   - name: multi-target-sdk-generation
     skill: orchestrate-multi-target-sdks
@@ -108,6 +106,5 @@ tests:
     verify_multi_target: true
     max_turns: 35  # Multi-target is complex
     task: |
-      Generate SDKs for multiple language targets (TypeScript and Python) from a single OpenAPI spec.
-      First run: speakeasy quickstart --skip-interactive --output console -s openapi.yaml -t typescript -n "MultiSDK" -p "multi-sdk"
-      Then configure the workflow.yaml to add a second Python target.
+      I need SDKs for both TypeScript and Python from the same OpenAPI spec at openapi.yaml.
+      Set up a workflow that generates both from a single source. Call it "MultiSDK".
