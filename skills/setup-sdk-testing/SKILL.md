@@ -8,6 +8,14 @@ license: Apache-2.0
 
 Set up and run tests for Speakeasy-generated SDKs using contract testing, custom Arazzo workflows, or integration tests against live APIs.
 
+## Content Guides
+
+| Topic | Guide |
+|-------|-------|
+| Arazzo Reference | [content/arazzo-reference.md](content/arazzo-reference.md) |
+
+The Arazzo reference provides complete syntax for workflows, steps, success criteria, environment variables, and chaining operations.
+
 ## When to Use
 
 - Setting up automated testing for a generated SDK

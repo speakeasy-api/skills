@@ -13,6 +13,14 @@ license: Apache-2.0
 
 Generate a Terraform provider from an OpenAPI specification using the Speakeasy CLI. This skill covers the full lifecycle: annotating your spec with entity metadata, mapping CRUD operations, generating the provider, configuring workflows, and publishing to the Terraform Registry.
 
+## Content Guides
+
+| Topic | Guide |
+|-------|-------|
+| Advanced Customization | [content/customization.md](content/customization.md) |
+
+The customization guide covers entity mapping placement, multi-operation resources, async polling, property customization, plan modification, validation, and state upgraders.
+
 ## When to Use
 
 - Generating a new Terraform provider from an OpenAPI spec

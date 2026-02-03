@@ -8,6 +8,15 @@ license: Apache-2.0
 
 Overlays let you customize an OpenAPI spec for SDK generation without modifying the source. This skill covers creating overlay files, applying them to specs, and using them to fix validation errors.
 
+## Content Guides
+
+| Topic | Guide |
+|-------|-------|
+| OpenAPI Validation | [content/validation.md](content/validation.md) |
+| Security Schemes | [content/security-schemes.md](content/security-schemes.md) |
+
+These guides cover validating specs, fixing common issues, and configuring authentication methods.
+
 ## Authentication
 
 Set `SPEAKEASY_API_KEY` env var or run `speakeasy auth login`.
