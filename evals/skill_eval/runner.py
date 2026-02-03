@@ -57,9 +57,19 @@ class EvalRunner:
         skill_filter: str | None = None,
         test_filter: str | None = None,
         with_skills: bool = True,
+        skill_names: list[str] | None = None,
         max_concurrent: int = 3,
     ) -> dict[str, Any]:
-        """Run evaluation suite."""
+        """Run evaluation suite.
+
+        Args:
+            suite: Test suite to run ("all", "generation", "overlay", "diagnosis", "workflow")
+            skill_filter: Only run tests for this skill
+            test_filter: Only run tests matching this name pattern
+            with_skills: If True, install skills in workspace
+            skill_names: Optional list of specific skill names to install. If None and with_skills=True, installs all.
+            max_concurrent: Maximum concurrent test runs
+        """
         tests = self.load_tests(suite)
 
         if skill_filter:
@@ -80,6 +90,7 @@ class EvalRunner:
             "failed": 0,
             "skipped": len(skipped_tests),
             "details": [],
+            "skill_names": skill_names,
         }
 
         # Add skipped tests to results
@@ -100,7 +111,7 @@ class EvalRunner:
             async with sem:
                 if self.verbose:
                     print(f"Running: {test.get('name', 'unnamed')}...")
-                result = await evaluator.evaluate(test, with_skills=with_skills)
+                result = await evaluator.evaluate(test, with_skills=with_skills, skill_names=skill_names)
                 result["name"] = test.get("name", "unnamed")
                 return result
 
@@ -117,7 +128,7 @@ class EvalRunner:
         results["pass_rate"] = results["passed"] / results["total"] if results["total"] > 0 else 0
         return results
 
-    async def run_single(self, test_name: str, with_skills: bool = True) -> dict[str, Any]:
+    async def run_single(self, test_name: str, with_skills: bool = True, skill_names: list[str] | None = None) -> dict[str, Any]:
         """Run a single test by name."""
         all_tests = []
         for suite in ["generation", "overlay", "diagnosis", "workflow"]:
@@ -131,7 +142,7 @@ class EvalRunner:
             return {"passed": False, "error": test["error"]}
 
         evaluator = SkillEvaluator(model=self.model)
-        result = await evaluator.evaluate(test, with_skills=with_skills)
+        result = await evaluator.evaluate(test, with_skills=with_skills, skill_names=skill_names)
         result["name"] = test_name
         return result
 
@@ -139,10 +150,18 @@ class EvalRunner:
         self,
         suite: str,
         skill_filter: str | None = None,
+        skill_names: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Compare results with and without skill context."""
+        """Compare results with and without skill context.
+
+        Args:
+            suite: Test suite to run
+            skill_filter: Only run tests for this skill
+            skill_names: Optional list of specific skill names to install for the "with" run.
+                         If None, installs all skills.
+        """
         without_results = await self.run(suite=suite, skill_filter=skill_filter, with_skills=False)
-        with_results = await self.run(suite=suite, skill_filter=skill_filter, with_skills=True)
+        with_results = await self.run(suite=suite, skill_filter=skill_filter, with_skills=True, skill_names=skill_names)
 
         return {
             "without_skills": without_results,

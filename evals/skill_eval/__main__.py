@@ -34,6 +34,7 @@ def cli():
     help="Test suite to run"
 )
 @click.option("--skill", help="Run tests for specific skill only")
+@click.option("--skills", help="Comma-separated list of specific skills to install (default: all)")
 @click.option("--test", "test_filter", help="Run tests matching this name pattern")
 @click.option("--output", "-o", type=click.Path(), help="Output results to JSON file")
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
@@ -41,9 +42,11 @@ def cli():
 @click.option("--max-concurrent", default=3, help="Max concurrent test runs")
 @click.option("--track/--no-track", default=True, help="Track results in VCS history")
 @click.option("--keep-workspaces", is_flag=True, help="Keep workspace directories for debugging")
+@click.option("--no-skills", is_flag=True, help="Run without any skills installed")
 def run(
     suite: str,
     skill: str | None,
+    skills: str | None,
     test_filter: str | None,
     output: str | None,
     verbose: bool,
@@ -51,6 +54,7 @@ def run(
     max_concurrent: int,
     track: bool,
     keep_workspaces: bool,
+    no_skills: bool,
 ):
     """Run skill evaluations.
 
@@ -61,15 +65,23 @@ def run(
         skill-eval run --test typescript -v
         skill-eval run --no-track  # Skip history tracking
         skill-eval run --keep-workspaces  # Keep workspaces for debugging
+        skill-eval run --skills speakeasy-context  # Only install speakeasy-context skill
+        skill-eval run --no-skills  # Run without any skills
     """
     runner = EvalRunner(model=model, verbose=verbose)
     # TODO: Add keep_workspaces support to EvalRunner
     reporter = Reporter(console)
     tracker = EvalTracker() if track else None
 
+    # Parse skill names if provided
+    skill_names = [s.strip() for s in skills.split(",")] if skills else None
+    with_skills = not no_skills
+
+    skill_desc = "no skills" if no_skills else (f"skills: {', '.join(skill_names)}" if skill_names else "all skills")
     console.print(Panel.fit(
         f"[bold]Running {suite} evaluations[/bold]\n"
         f"Model: {model}\n"
+        f"Skills: {skill_desc}\n"
         f"Concurrent: {max_concurrent}\n"
         f"Tracking: {'enabled' if track else 'disabled'}",
         title="Skill Eval"
@@ -81,6 +93,8 @@ def run(
             skill_filter=skill,
             test_filter=test_filter,
             max_concurrent=max_concurrent,
+            with_skills=with_skills,
+            skill_names=skill_names,
         ))
 
     reporter.print_results(results)
@@ -321,24 +335,37 @@ def trend(count: int):
 @cli.command()
 @click.option("--suite", type=click.Choice(["all", "generation", "overlay", "diagnosis", "workflow"]), required=True)
 @click.option("--model", default="claude-sonnet-4-20250514", help="Model to use")
-def compare(suite: str, model: str):
+@click.option("--skills", help="Comma-separated list of specific skills to install (default: all)")
+@click.option("--test", "test_filter", help="Run tests matching this name pattern")
+def compare(suite: str, model: str, skills: str | None, test_filter: str | None):
     """Compare results with and without skills loaded.
 
     This helps measure the effectiveness of skills by comparing
     agent performance with skill context vs without.
+
+    Examples:
+
+        skill-eval compare --suite generation
+        skill-eval compare --suite generation --skills speakeasy-context
+        skill-eval compare --suite generation --skills speakeasy-context,start-new-sdk-project
+        skill-eval compare --suite generation --test typescript
     """
     runner = EvalRunner(model=model)
     reporter = Reporter(console)
 
-    console.print(f"\n[bold]Comparing {suite} results with/without skills[/bold]\n")
+    # Parse skill names if provided
+    skill_names = [s.strip() for s in skills.split(",")] if skills else None
+
+    skill_desc = f"skills: {', '.join(skill_names)}" if skill_names else "all skills"
+    console.print(f"\n[bold]Comparing {suite} results with/without {skill_desc}[/bold]\n")
 
     console.print("[bold]Running WITHOUT skills...[/bold]")
     with console.status("[yellow]Testing base model..."):
-        results_without = asyncio.run(runner.run(suite=suite, with_skills=False))
+        results_without = asyncio.run(runner.run(suite=suite, with_skills=False, test_filter=test_filter))
 
     console.print("\n[bold]Running WITH skills...[/bold]")
     with console.status("[green]Testing with skills..."):
-        results_with = asyncio.run(runner.run(suite=suite, with_skills=True))
+        results_with = asyncio.run(runner.run(suite=suite, with_skills=True, skill_names=skill_names, test_filter=test_filter))
 
     reporter.print_comparison(results_without, results_with)
 
