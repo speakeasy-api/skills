@@ -17,3 +17,31 @@ package-lock.json
 dist/
 build/
 *.zip
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+.env
+*.egg-info/
+*.egg
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Eval outputs
+evals/results/
+evals/reports/
+evals/*.json
+evals/*.html

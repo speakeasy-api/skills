@@ -8,6 +8,21 @@ license: Apache-2.0
 
 Extract an OpenAPI specification from an existing API codebase. Covers eight major frameworks across Python, Java, JavaScript/TypeScript, Ruby, and PHP.
 
+## Content Guides
+
+| Framework | Language | Guide |
+|-----------|----------|-------|
+| FastAPI | Python | [content/frameworks/fastapi.md](content/frameworks/fastapi.md) |
+| Flask | Python | [content/frameworks/flask.md](content/frameworks/flask.md) |
+| Django REST Framework | Python | [content/frameworks/django.md](content/frameworks/django.md) |
+| Spring Boot | Java | [content/frameworks/spring-boot.md](content/frameworks/spring-boot.md) |
+| NestJS | TypeScript | [content/frameworks/nestjs.md](content/frameworks/nestjs.md) |
+| Hono | TypeScript | [content/frameworks/hono.md](content/frameworks/hono.md) |
+| Rails | Ruby | [content/frameworks/rails.md](content/frameworks/rails.md) |
+| Laravel | PHP | [content/frameworks/laravel.md](content/frameworks/laravel.md) |
+
+Each guide provides detailed setup, schema definition, Speakeasy extensions, authentication, and troubleshooting for that framework.
+
 ## When to Use
 
 - User has an existing API and wants to generate an OpenAPI spec from it
@@ -255,6 +270,86 @@ speakeasy quickstart --skip-interactive --output console \
   -p "my-api-sdk"
 ```
 
+## Adding Speakeasy Extensions
+
+After extracting a spec, add Speakeasy-specific extensions for better SDK output. These can be added in framework config or via overlay.
+
+### FastAPI: Add Extensions via `openapi_extra`
+
+```python
+@app.get(
+    "/items",
+    openapi_extra={
+        "x-speakeasy-retries": {
+            "strategy": "backoff",
+            "backoff": {"initialInterval": 500, "maxInterval": 60000, "exponent": 1.5},
+            "statusCodes": ["5XX", "429"]
+        },
+        "x-speakeasy-group": "items",
+        "x-speakeasy-name-override": "list"
+    }
+)
+def list_items(): ...
+```
+
+### Django: Add Extensions via `SPECTACULAR_SETTINGS`
+
+```python
+# settings.py
+SPECTACULAR_SETTINGS = {
+    # ... other settings
+    'EXTENSIONS_TO_SCHEMA_FUNCTION': lambda generator, request, public: {
+        'x-speakeasy-retries': {
+            'strategy': 'backoff',
+            'backoff': {'initialInterval': 500, 'maxInterval': 60000, 'exponent': 1.5},
+            'statusCodes': ['5XX']
+        }
+    }
+}
+```
+
+### Spring Boot: Add Extensions via Custom `OperationCustomizer`
+
+```java
+@Bean
+public OperationCustomizer operationCustomizer() {
+    return (operation, handlerMethod) -> {
+        operation.addExtension("x-speakeasy-group",
+            handlerMethod.getBeanType().getSimpleName().replace("Controller", "").toLowerCase());
+        return operation;
+    };
+}
+```
+
+### NestJS: Add Extensions via Decorator Options
+
+```typescript
+@Get()
+@ApiOperation({
+  summary: 'List items',
+  operationId: 'listItems'
+})
+@ApiExtension('x-speakeasy-group', 'items')
+@ApiExtension('x-speakeasy-name-override', 'list')
+listItems() { ... }
+```
+
+### Via Overlay (Any Framework)
+
+If you cannot modify framework code, use an overlay:
+
+```yaml
+overlay: 1.0.0
+info:
+  title: Speakeasy Extensions
+  version: 1.0.0
+actions:
+  - target: $.paths['/items'].get
+    update:
+      x-speakeasy-group: items
+      x-speakeasy-name-override: list
+```
+
 ## Common Issues After Extraction
 
 | Issue | Symptom | Fix |
@@ -285,3 +380,8 @@ speakeasy quickstart --skip-interactive --output console \
 | `Cannot find module` (Node.js) | Dependencies not installed | Run `npm install` or `yarn install` |
 | No `/v3/api-docs` endpoint (Spring Boot) | springdoc not configured | Add `springdoc-openapi-starter-webmvc-ui` to dependencies |
 | No `/api-json` endpoint (NestJS) | Swagger module not set up | Configure `SwaggerModule.setup(app, ...)` in `main.ts` |
+
+## Related Skills
+
+- `manage-openapi-overlays` - Add x-speakeasy-* extensions via overlay
+- `start-new-sdk-project` - Generate SDK after extraction

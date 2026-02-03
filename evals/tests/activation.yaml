@@ -1,0 +1,44 @@
+# Activation tests: verify skills trigger on correct phrases
+
+tests:
+  - skill: manage-openapi-overlays
+    should_activate:
+      - "add retries to my SDK"
+      - "configure x-speakeasy-pagination"
+      - "make enums open"
+      - "add global headers to SDK"
+      - "create overlay"
+      - "apply overlay to spec"
+      - "can't modify spec"
+    should_not_activate:
+      - "add retry logic to my code"
+      - "configure pagination"
+      - "edit openapi directly"
+
+  - skill: generate-terraform-provider
+    should_activate:
+      - "generate terraform provider from spec"
+      - "add x-speakeasy-entity annotations"
+      - "map CRUD operations for terraform"
+    should_not_activate:
+      - "write terraform config"
+      - "create terraform module"
+
+  - skill: extract-openapi-from-code
+    should_activate:
+      - "extract OpenAPI from FastAPI"
+      - "Django OpenAPI spec"
+      - "code first SDK"
+    should_not_activate:
+      - "write OpenAPI spec"
+      - "create API"
+
+  - skill: configure-sdk-options
+    should_activate:
+      - "generate Python SDK"
+      - "Python client library"
+      - "generate TypeScript SDK"
+      - "npm package SDK"
+    should_not_activate:
+      - "write Python code"
+      - "write TypeScript"

@@ -1,6 +1,6 @@
 ---
 name: improve-sdk-naming
-description: Use when SDK methods have ugly auto-generated names or you want AI-powered naming and error type suggestions. Triggers on "suggest improvements", "improve my spec", "speakeasy suggest", "better operation names", "ugly method names", "GetApiV1Users", "improve operation IDs", "sdk.users.list() style", "better SDK naming", "x-speakeasy-group", "suggest error types", "AI suggestions"
+description: Use when you want AI-powered suggestions for SDK naming improvements via the `speakeasy suggest` command (not manual overlay creation). Triggers on "suggest improvements", "speakeasy suggest", "AI suggestions", "suggest operation-ids", "suggest error-types", "auto-improve naming", "get AI recommendations".
 license: Apache-2.0
 ---
 
@@ -10,11 +10,15 @@ Improve SDK method naming using AI-powered suggestions or manual overrides. Cove
 
 ## When to Use
 
+Use this skill when you want **AI-powered suggestions** from Speakeasy:
+
 - SDK methods have ugly auto-generated names like `GetApiV1Users`
-- You want grouped methods like `sdk.users.list()`
-- You want AI-generated suggestions for operation IDs or error types
-- Looking to improve spec quality automatically
-- User says: "suggest improvements", "improve my spec", "better operation names", "ugly method names", "improve operation IDs", "better SDK naming", "suggest error types", "AI suggestions"
+- You want Speakeasy AI to suggest better operation IDs
+- You want AI-generated suggestions for error types
+- Looking to improve spec quality automatically using `speakeasy suggest`
+- User says: "suggest improvements", "speakeasy suggest", "AI suggestions", "suggest operation-ids", "suggest error-types", "get AI recommendations"
+
+**NOT for**: Manually creating overlays (see `manage-openapi-overlays` instead)
 
 ## Inputs
 
@@ -94,39 +98,11 @@ This analyzes your spec and generates an overlay that transforms names like:
 - `get_api_v1_users_list` -> `listUsers`
 - `post_api_v1_users_create` -> `createUser`
 
-### Step 2: Manual Naming with an Overlay
+### Step 2: Review and Apply the Overlay
 
-If you need more control, create an overlay manually. This overlay sets `x-speakeasy-group` and `x-speakeasy-name-override` on specific operations:
+The AI-generated overlay (from `-o`) creates naming improvements using `x-speakeasy-group` and `x-speakeasy-name-override`.
 
-```yaml
-overlay: 1.0.0
-info:
-  title: SDK naming improvements
-  version: 1.0.0
-actions:
-  - target: "$.paths['/api/v1/users'].get"
-    update:
-      x-speakeasy-group: users
-      x-speakeasy-name-override: list
-  - target: "$.paths['/api/v1/users/{id}'].get"
-    update:
-      x-speakeasy-group: users
-      x-speakeasy-name-override: get
-  - target: "$.paths['/api/v1/users'].post"
-    update:
-      x-speakeasy-group: users
-      x-speakeasy-name-override: create
-  - target: "$.paths['/api/v1/users/{id}'].put"
-    update:
-      x-speakeasy-group: users
-      x-speakeasy-name-override: update
-  - target: "$.paths['/api/v1/users/{id}'].delete"
-    update:
-      x-speakeasy-group: users
-      x-speakeasy-name-override: delete
-```
-
-This produces SDK methods like `sdk.users.list()`, `sdk.users.get()`, `sdk.users.create()`, etc.
+**Note**: For manual overlay creation, use the `manage-openapi-overlays` skill instead of this skill.
 
 ### Step 3: Add the Overlay to workflow.yaml
 

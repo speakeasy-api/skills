@@ -13,6 +13,14 @@ license: Apache-2.0
 
 Generate a Terraform provider from an OpenAPI specification using the Speakeasy CLI. This skill covers the full lifecycle: annotating your spec with entity metadata, mapping CRUD operations, generating the provider, configuring workflows, and publishing to the Terraform Registry.
 
+## Content Guides
+
+| Topic | Guide |
+|-------|-------|
+| Advanced Customization | [content/customization.md](content/customization.md) |
+
+The customization guide covers entity mapping placement, multi-operation resources, async polling, property customization, plan modification, validation, and state upgraders.
+
 ## When to Use
 
 - Generating a new Terraform provider from an OpenAPI spec
@@ -326,16 +334,68 @@ terraform plan -generate-config-out=generated.tf
 
 ## Publishing to the Terraform Registry
 
-Publishing requires:
+### Prerequisites
 
-1. A **public** GitHub repository named `terraform-provider-{name}`
-2. A **GPG signing key** for release signing
-3. A **GoReleaser** configuration and GitHub Actions workflow
-4. **Registration** with the Terraform Registry at [registry.terraform.io](https://registry.terraform.io)
+1. **Public repository** named `terraform-provider-{name}` (lowercase)
+2. **GPG signing key** for release signing
+3. **GoReleaser** configuration
+4. **Registration** at [registry.terraform.io](https://registry.terraform.io)
 
-The Speakeasy Generation GitHub Action automates versioning and release. After initial registration, subsequent updates publish automatically when PRs are merged.
+### Step 1: Generate GPG Key
 
-For detailed publishing steps, set up GPG signing keys, configure a GitHub Actions workflow with `speakeasy-api/sdk-generation-action`, and use GoReleaser to build and publish the provider binary.
+```bash
+gpg --full-generate-key  # Choose RSA, 4096 bits
+gpg --armor --export-secret-keys YOUR_KEY_ID > private.key
+gpg --armor --export YOUR_KEY_ID > public.key
+```
+
+### Step 2: Configure Repository Secrets
+
+Add to GitHub repository secrets:
+- `terraform_gpg_secret_key` - Private key content
+- `terraform_gpg_passphrase` - Key passphrase
+
+### Step 3: Add Release Workflow
+
+```yaml
+# .github/workflows/release.yaml
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v4
+        with:
+          go-version-file: 'go.mod'
+      - uses: crazy-max/ghaction-import-gpg@v5
+        id: import_gpg
+        with:
+          gpg_private_key: ${{ secrets.terraform_gpg_secret_key }}
+          passphrase: ${{ secrets.terraform_gpg_passphrase }}
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+```
+
+### Step 4: Register with Terraform Registry
+
+1. Go to [registry.terraform.io](https://registry.terraform.io)
+2. Sign in with GitHub (org admin required)
+3. Publish → Provider → Select your repository
+
+After registration, releases auto-publish when tags are pushed.
 
 ## Beta Provider Pattern
 
@@ -345,6 +405,57 @@ For large APIs, maintain separate **stable** and **beta** providers:
 - **Beta**: `terraform-provider-{name}-beta` with `0.x` versioning
 
 Users can install both simultaneously. When beta features mature, graduate them to the stable provider. To set up a beta provider, create a separate `terraform-provider-{name}-beta` repository with its own `gen.yaml` using `0.x` versioning, and publish it alongside the stable provider.
+
+## Testing the Provider
+
+### Add Test Dependency
+
+In `.speakeasy/gen.yaml`:
+
+```yaml
+terraform:
+  additionalDependencies:
+    github.com/hashicorp/terraform-plugin-testing: v1.13.3
+```
+
+### Acceptance Test Structure
+
+```go
+// internal/provider/resource_test.go
+func TestAccPet_Lifecycle(t *testing.T) {
+    t.Parallel()
+
+    resource.Test(t, resource.TestCase{
+        PreCheck:                 func() { testAccPreCheck(t) },
+        ProtoV6ProviderFactories: testAccProviders(),
+        Steps: []resource.TestStep{
+            {
+                Config: testAccPetConfig("Buddy", 1500),
+                Check: resource.ComposeTestCheckFunc(
+                    resource.TestCheckResourceAttr("petstore_pet.test", "name", "Buddy"),
+                ),
+            },
+            {
+                ResourceName:      "petstore_pet.test",
+                ImportState:       true,
+                ImportStateVerify: true,
+            },
+        },
+    })
+}
+```
+
+### Running Tests
+
+```bash
+# Unit tests
+go test -v ./...
+
+# Acceptance tests (REQUIRES TF_ACC=1)
+TF_ACC=1 go test -v ./internal/provider/... -timeout 30m
+```
+
+**Note:** Without `TF_ACC=1`, tests silently skip with PASS status.
 
 ## What NOT to Do
 
@@ -366,3 +477,9 @@ Users can install both simultaneously. When beta features mature, graduate them 
 | Computed field not populated | Field absent from CREATE response | Ensure the CREATE response returns the full resource including computed fields |
 | Entity not appearing as resource | Missing `x-speakeasy-entity` annotation | Add `x-speakeasy-entity: EntityName` to the component schema |
 | Auth not working | Missing API key | Set `SPEAKEASY_API_KEY` env var or run `speakeasy auth login` |
+
+## Related Skills
+
+- `start-new-sdk-project` - Initial project setup
+- `manage-openapi-overlays` - Add entity annotations via overlay
+- `diagnose-generation-failure` - Troubleshoot generation errors

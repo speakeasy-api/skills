@@ -1,13 +1,13 @@
 ---
 name: customize-sdk-hooks
 description: |
-  Guide for implementing SDK lifecycle hooks to customize request/response behavior.
-  Covers hook types, registration patterns, and practical examples for adding
-  custom headers, telemetry, security signatures, and error handling.
+  Use when implementing SDK code hooks for custom logic (not spec configuration or runtime overrides).
+  Covers SDK lifecycle hooks: BeforeRequest, AfterSuccess, AfterError for custom headers,
+  telemetry, HMAC signing, and request/response transformation.
 
-  Trigger phrases: "SDK hooks", "add hooks", "BeforeRequestHook", "custom user-agent",
-  "telemetry hook", "SDK middleware", "intercept requests", "custom security hook",
-  "HMAC authentication"
+  Triggers on "SDK hooks", "add hooks", "BeforeRequestHook", "custom logic in SDK",
+  "telemetry hook", "SDK middleware", "intercept requests", "HMAC signing hook",
+  "custom code in hooks directory".
 license: Apache-2.0
 ---
 
@@ -15,14 +15,18 @@ license: Apache-2.0
 
 ## When to Use
 
-Use this skill when you need to:
+Use this skill when you need to **add custom code logic** to the generated SDK:
 
-- Add custom headers (User-Agent, correlation IDs) to every SDK request
+- Add custom headers (User-Agent, correlation IDs) to every SDK request via code
 - Implement telemetry, logging, or observability at the SDK level
-- Add custom authentication logic (HMAC signatures, token refresh, API key injection)
+- Add custom authentication logic (HMAC signatures, token refresh) that runs in SDK code
 - Transform responses or errors before they reach the caller
-- Configure SDK defaults at initialization time
-- Implement retry logic or custom error handling
+- Implement custom request/response middleware
+- User says: "SDK hooks", "add custom logic", "intercept requests with code", "HMAC signing hook", "telemetry in SDK"
+
+**NOT for**:
+- OpenAPI spec modifications (see `manage-openapi-overlays`)
+- Runtime SDK client config (see `configure-sdk-options`)
 
 ## Inputs
 

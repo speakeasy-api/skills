@@ -1,0 +1,110 @@
+# SDK Generation Tests
+# These tests verify that skills guide successful SDK generation
+#
+# Compilation modes:
+#   - quick: Fast type/syntax checks only (2-15s per target)
+#   - full: Complete build with dependencies (30-120s per target)
+
+tests:
+  - name: typescript-sdk-from-clean-spec
+    skill: start-new-sdk-project  # Primary SDK generation skill
+    type: generation
+    target: typescript
+    spec_file: fixtures/petstore-minimal.yaml
+    verify_compilation: true
+    compile_mode: quick  # Uses tsc --noEmit instead of npm run build
+    verify_workflow: true
+    verify_gen_yaml: false  # gen.yaml sometimes missing due to Speakeasy bug
+    max_turns: 25  # SDK generation needs more turns
+    task: |
+      I have an OpenAPI spec at openapi.yaml. Generate a TypeScript SDK from it.
+      The SDK should be named "PetstoreSDK" with package name "petstore-sdk".
+
+  - name: python-sdk-from-clean-spec
+    skill: start-new-sdk-project  # Primary SDK generation skill
+    type: generation
+    target: python
+    spec_file: fixtures/petstore-minimal.yaml
+    verify_compilation: true
+    compile_mode: quick  # Uses python -m compileall
+    verify_workflow: true
+    verify_gen_yaml: false  # gen.yaml sometimes missing due to Speakeasy bug
+    max_turns: 25  # SDK generation needs more turns
+    task: |
+      Create a Python SDK from openapi.yaml for our Petstore API.
+      Name it "PetstoreSDK" with package "petstore-sdk".
+
+  - name: go-sdk-from-clean-spec
+    skill: start-new-sdk-project  # Primary SDK generation skill
+    type: generation
+    target: go
+    spec_file: fixtures/petstore-minimal.yaml
+    verify_compilation: true
+    compile_mode: quick  # Uses go vet instead of go build
+    verify_workflow: true
+    verify_gen_yaml: false  # gen.yaml sometimes missing due to Speakeasy bug
+    max_turns: 25  # SDK generation needs more turns
+    task: |
+      Build a Go client library from the API spec in openapi.yaml.
+      Call it "PetstoreSDK" with package "petstore-sdk".
+
+  - name: typescript-sdk-with-pagination
+    skill: manage-openapi-overlays
+    type: generation
+    target: typescript
+    spec_file: fixtures/paginated-api.yaml
+    verify_compilation: true
+    compile_mode: quick
+    verify_workflow: true
+    verify_gen_yaml: false  # gen.yaml sometimes missing due to Speakeasy bug
+    max_turns: 30  # More complex - overlay + generation
+    task: |
+      Generate a TypeScript SDK from the API spec at openapi.yaml. The API has paginated list endpoints.
+      Configure pagination support so SDK users get automatic page iteration.
+      Name it "PaginatedSDK" with package "paginated-sdk".
+
+  - name: typescript-sdk-with-hooks
+    skill: customize-sdk-hooks
+    type: generation
+    target: typescript
+    spec_file: fixtures/petstore-minimal.yaml
+    verify_compilation: true
+    compile_mode: quick
+    verify_workflow: true
+    verify_gen_yaml: false  # gen.yaml sometimes missing due to Speakeasy bug
+    verify_hooks: true
+    max_turns: 30  # Generation + hooks customization
+    task: |
+      Create a TypeScript SDK from openapi.yaml called "HooksSDK" (package: hooks-sdk).
+      I need to add a custom X-Request-ID header to every API request.
+      Set up the SDK with hooks to make this possible.
+
+  - name: typescript-sdk-with-mcp
+    skill: generate-mcp-server
+    type: generation
+    target: typescript
+    spec_file: fixtures/petstore-minimal.yaml
+    verify_compilation: true
+    compile_mode: quick
+    verify_workflow: true
+    verify_gen_yaml: false  # gen.yaml sometimes missing due to Speakeasy bug
+    verify_mcp: true
+    max_turns: 30  # Generation + MCP config
+    task: |
+      Generate a TypeScript SDK from openapi.yaml named "McpSDK" (package: mcp-sdk).
+      I want to use this API with AI assistants like Claude, so enable MCP server support.
+
+  - name: multi-target-sdk-generation
+    skill: orchestrate-multi-target-sdks
+    type: generation
+    target: typescript
+    spec_file: fixtures/petstore-minimal.yaml
+    verify_compilation: true
+    compile_mode: quick
+    verify_workflow: true
+    verify_gen_yaml: false  # gen.yaml sometimes missing due to Speakeasy bug
+    verify_multi_target: true
+    max_turns: 35  # Multi-target is complex
+    task: |
+      I need SDKs for both TypeScript and Python from the same OpenAPI spec at openapi.yaml.
+      Set up a workflow that generates both from a single source. Call it "MultiSDK".

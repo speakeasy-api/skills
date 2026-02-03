@@ -1,19 +1,26 @@
 ---
 name: start-new-sdk-project
-description: Use when starting a new SDK project or first-time Speakeasy setup. Triggers on "create SDK", "generate SDK", "new SDK", "quickstart", "get started with Speakeasy", "initialize SDK project"
+description: >-
+  Use when generating a new SDK from an OpenAPI spec. This is the PRIMARY skill for SDK generation.
+  Triggers on "create SDK", "generate SDK", "new SDK", "quickstart", "TypeScript SDK", "Python SDK",
+  "Go SDK", "Java SDK", "generate TypeScript", "generate Python", "generate Go", "make SDK",
+  "build SDK", "SDK from OpenAPI", "SDK from spec", "initialize SDK project".
 license: Apache-2.0
 ---
 
 # start-new-sdk-project
 
-Use `speakeasy quickstart` to initialize a new SDK project with workflow configuration and generate the SDK.
+**Always use `speakeasy quickstart`** to initialize a new SDK project. This is the ONLY correct command for new projects - it creates both the SDK and the essential `.speakeasy/workflow.yaml` configuration file.
+
+> ⚠️ **Never use `speakeasy generate sdk` for new projects** - it does not create the workflow file needed for maintainable SDK development.
 
 ## When to Use
 
+- Generating any SDK from an OpenAPI spec (TypeScript, Python, Go, Java, etc.)
 - Starting a brand new SDK project
 - No `.speakeasy/workflow.yaml` exists yet
 - First-time Speakeasy setup
-- User says: "create SDK", "new SDK", "quickstart", "get started with Speakeasy"
+- User says: "generate SDK", "TypeScript SDK", "Python SDK", "Go SDK", "create SDK", "new SDK"
 
 ## Inputs
 
@@ -33,7 +40,7 @@ Use `speakeasy quickstart` to initialize a new SDK project with workflow configu
 
 ## Prerequisites
 
-For non-interactive environments (CI/CD, AI agents), set:
+For non-interactive environments (CI/CD, automation), set:
 ```bash
 export SPEAKEASY_API_KEY="<your-api-key>"
 ```
@@ -49,13 +56,13 @@ speakeasy quickstart --skip-interactive --output console -s <schema> -t <target>
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--skip-interactive` | | **Required for AI agents.** Skips all prompts |
+| `--skip-interactive` | | **Required for automation.** Skips all prompts |
 | `--schema` | `-s` | OpenAPI spec source (see Schema Sources below) |
 | `--target` | `-t` | Target language (see Supported Targets) |
 | `--name` | `-n` | SDK name in PascalCase (e.g., `MyCompanySDK`) |
 | `--package-name` | `-p` | Package name (language variants auto-inferred) |
 | `--out-dir` | `-o` | Output directory (default: current dir) |
-| `--output` | | Output format: `summary`, `console`, `mermaid`. **Use `console` for AI agents** |
+| `--output` | | Output format: `summary`, `console`, `mermaid`. **Use `console` for automation** |
 | `--init-git` | | Initialize git repo (omit to skip in non-interactive mode) |
 
 ## Schema Sources
@@ -131,6 +138,37 @@ speakeasy quickstart --skip-interactive --output console \
 2. Add more targets to `.speakeasy/workflow.yaml` for multi-language support
 3. Run `speakeasy run` to regenerate after spec or config changes
 
+## Essential CLI Commands
+
+| Command | Purpose |
+|---------|---------|
+| `speakeasy quickstart ...` | Initialize new SDK project |
+| `speakeasy run -y --output console` | Regenerate SDK from workflow |
+| `speakeasy lint openapi --non-interactive -s spec.yaml` | Validate OpenAPI spec |
+| `speakeasy auth login` | Authenticate with Speakeasy |
+| `speakeasy pull --list --format json` | List registry sources |
+
+## What NOT to Do
+
+- **Do NOT use `speakeasy generate sdk`** for new projects. This low-level command generates code but does NOT create `.speakeasy/workflow.yaml`. Without a workflow file, you lose:
+  - Reproducible builds via `speakeasy run`
+  - Multi-target SDK generation
+  - CI/CD integration
+  - Version tracking and upgrade paths
+
+- **Do NOT skip `--skip-interactive`** in automated environments. The command will hang waiting for user input.
+
+- **Do NOT omit `--output console`** in automated environments. You need structured output to verify success.
+
+### quickstart vs generate sdk
+
+| Command | Creates workflow.yaml | Use case |
+|---------|----------------------|----------|
+| `speakeasy quickstart` | ✅ Yes | **New projects** - Always use this |
+| `speakeasy generate sdk` | ❌ No | One-off generation (rare, advanced use only) |
+
+**Always use `quickstart` for new SDK projects.** The workflow file it creates is essential for maintainable SDK development.
+
 ## Troubleshooting
 
 | Error | Cause | Solution |
@@ -138,3 +176,9 @@ speakeasy quickstart --skip-interactive --output console \
 | Workflow already exists | `.speakeasy/workflow.yaml` already present | Run `speakeasy run` to regenerate the existing SDK instead |
 | Unauthorized | Missing or invalid API key | Run `speakeasy auth login` or set `SPEAKEASY_API_KEY` |
 | Schema not found | Invalid path, URL, or source name | Verify path exists or use `speakeasy pull --list` for sources |
+
+## Related Skills
+
+- `diagnose-generation-failure` - When generation fails
+- `manage-openapi-overlays` - Customize spec with overlays
+- `configure-sdk-options` - Language-specific gen.yaml configuration for all supported languages

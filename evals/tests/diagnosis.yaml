@@ -1,0 +1,24 @@
+# Diagnosis Tests
+# These tests verify that skills help diagnose generation issues
+
+tests:
+  - name: diagnose-missing-operation-ids
+    skill: diagnose-generation-failure
+    type: diagnosis
+    spec_file: fixtures/petstore-poor-naming.yaml
+    task: |
+      SDK generation failed with poor method names. Diagnose what's causing the issue.
+      Use speakeasy lint to identify the root cause in the spec.
+    expected_issues:
+      - operationId
+      - naming
+
+  - name: diagnose-pagination-opportunity
+    skill: diagnose-generation-failure
+    type: diagnosis
+    spec_file: fixtures/paginated-api.yaml
+    task: |
+      The generated SDK is missing pagination support. Diagnose the issue and
+      identify what patterns in the spec could benefit from Speakeasy extensions.
+    expected_issues:
+      - pagination
