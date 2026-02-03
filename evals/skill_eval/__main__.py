@@ -40,6 +40,7 @@ def cli():
 @click.option("--model", default="claude-sonnet-4-20250514", help="Model to use for agent")
 @click.option("--max-concurrent", default=3, help="Max concurrent test runs")
 @click.option("--track/--no-track", default=True, help="Track results in VCS history")
+@click.option("--keep-workspaces", is_flag=True, help="Keep workspace directories for debugging")
 def run(
     suite: str,
     skill: str | None,
@@ -49,6 +50,7 @@ def run(
     model: str,
     max_concurrent: int,
     track: bool,
+    keep_workspaces: bool,
 ):
     """Run skill evaluations.
 
@@ -58,8 +60,10 @@ def run(
         skill-eval run --skill start-new-sdk-project
         skill-eval run --test typescript -v
         skill-eval run --no-track  # Skip history tracking
+        skill-eval run --keep-workspaces  # Keep workspaces for debugging
     """
     runner = EvalRunner(model=model, verbose=verbose)
+    # TODO: Add keep_workspaces support to EvalRunner
     reporter = Reporter(console)
     tracker = EvalTracker() if track else None
 
@@ -341,3 +345,51 @@ def compare(suite: str, model: str):
 
 if __name__ == "__main__":
     cli()
+
+@cli.command()
+@click.option("--all", is_flag=True, help="Remove all temporary workspaces")
+@click.option("--dry-run", is_flag=True, help="Show what would be deleted without deleting")
+def clean(all: bool, dry_run: bool):
+    """Clean up leftover workspace directories from failed tests.
+    
+    Examples:
+    
+        skill-eval clean  # Clean recent workspaces
+        skill-eval clean --all  # Clean all workspaces
+        skill-eval clean --dry-run  # Show what would be deleted
+    """
+    import shutil
+    from pathlib import Path
+    
+    workspace_dirs = list(Path("/tmp").glob("skill-eval-*"))
+    
+    if not workspace_dirs:
+        console.print("[green]No workspace directories found to clean[/green]")
+        return
+    
+    console.print(f"[bold]Found {len(workspace_dirs)} workspace director{'y' if len(workspace_dirs) == 1 else 'ies'}:[/bold]\n")
+    
+    for workspace_dir in workspace_dirs:
+        size = sum(f.stat().st_size for f in workspace_dir.rglob('*') if f.is_file())
+        size_mb = size / (1024 * 1024)
+        console.print(f"  {workspace_dir.name} ({size_mb:.1f} MB)")
+    
+    if dry_run:
+        console.print("\n[yellow]Dry run - no files deleted[/yellow]")
+        return
+    
+    if not all and len(workspace_dirs) > 5:
+        # Keep the 5 most recent
+        workspace_dirs_sorted = sorted(workspace_dirs, key=lambda d: d.stat().st_mtime, reverse=True)
+        to_delete = workspace_dirs_sorted[5:]
+        to_keep = workspace_dirs_sorted[:5]
+        
+        console.print(f"\n[dim]Keeping {len(to_keep)} most recent workspaces[/dim]")
+        workspace_dirs = to_delete
+    
+    if workspace_dirs:
+        console.print(f"\n[yellow]Deleting {len(workspace_dirs)} workspace director{'y' if len(workspace_dirs) == 1 else 'ies'}...[/yellow]")
+        for workspace_dir in workspace_dirs:
+            shutil.rmtree(workspace_dir)
+            console.print(f"  [red]✗[/red] Deleted {workspace_dir.name}")
+        console.print("\n[green]Cleanup complete![/green]")

@@ -12,7 +12,8 @@ class Workspace:
     """Isolated workspace for evaluating skills against the Speakeasy CLI."""
 
     def __init__(self, base_dir: Path | None = None):
-        self.base_dir = base_dir or Path(tempfile.mkdtemp(prefix="skill-eval-"))
+        # CRITICAL: Use /tmp not ~/.claude/tmp to avoid speakeasy finding parent workflows
+        self.base_dir = base_dir or Path(tempfile.mkdtemp(prefix="skill-eval-", dir="/tmp"))
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self._initial_state: dict[str, str] | None = None
 
@@ -51,8 +52,20 @@ class Workspace:
             for name, content in overlays.items():
                 (self.overlay_dir / name).write_text(content)
 
+        # Copy Speakeasy auth config if it exists
+        self._setup_speakeasy_auth()
+
         # Capture initial state
         self._initial_state = self._snapshot_state()
+
+    def _setup_speakeasy_auth(self) -> None:
+        """Copy Speakeasy authentication config to workspace."""
+        home_speakeasy_config = Path.home() / ".speakeasy" / "config.yaml"
+        if home_speakeasy_config.exists():
+            workspace_speakeasy_dir = self.base_dir / ".speakeasy"
+            workspace_speakeasy_dir.mkdir(parents=True, exist_ok=True)
+            workspace_config = workspace_speakeasy_dir / "config.yaml"
+            shutil.copy2(home_speakeasy_config, workspace_config)
 
     def _snapshot_state(self) -> dict[str, str]:
         """Capture current state of all files in workspace."""

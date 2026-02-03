@@ -67,9 +67,17 @@ class WorkspaceAssessor:
         # Also check if SDK was generated directly in workspace root
         # (common for speakeasy quickstart)
         if sdk_dir is None:
-            # Check for .speakeasy/gen.yaml which indicates SDK generation happened
-            gen_yaml = self.workspace_dir / ".speakeasy" / "gen.yaml"
-            if gen_yaml.exists():
+            # Check for Speakeasy project indicators
+            # Modern speakeasy uses workflow.yaml + gen.lock (not gen.yaml)
+            speakeasy_indicators = [
+                self.workspace_dir / ".speakeasy" / "workflow.yaml",
+                self.workspace_dir / ".speakeasy" / "gen.lock",
+                self.workspace_dir / ".speakeasy" / "gen.yaml",
+                self.workspace_dir / "gen.yaml"
+            ]
+            is_speakeasy_project = any(p.exists() for p in speakeasy_indicators)
+
+            if is_speakeasy_project:
                 # Check for language-specific indicators at workspace root
                 # Python/TypeScript: src/ directory
                 # Go: go.mod file
@@ -505,9 +513,8 @@ class WorkspaceAssessor:
         result.add_check("overlay_exists", True, f"{overlay_path.name} found")
 
         # Run speakeasy overlay validate
+        # Note: speakeasy overlay validate does not support a -s/--spec flag as of current version
         cmd = ["speakeasy", "overlay", "validate", "-o", str(overlay_path)]
-        if spec_path and spec_path.exists():
-            cmd.extend(["-s", str(spec_path)])
 
         validation_result = self.assess_command_success(cmd, cwd=overlay_path.parent)
 
