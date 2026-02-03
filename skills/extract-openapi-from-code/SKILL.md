@@ -8,6 +8,21 @@ license: Apache-2.0
 
 Extract an OpenAPI specification from an existing API codebase. Covers eight major frameworks across Python, Java, JavaScript/TypeScript, Ruby, and PHP.
 
+## Content Guides
+
+| Framework | Language | Guide |
+|-----------|----------|-------|
+| FastAPI | Python | [content/frameworks/fastapi.md](content/frameworks/fastapi.md) |
+| Flask | Python | [content/frameworks/flask.md](content/frameworks/flask.md) |
+| Django REST Framework | Python | [content/frameworks/django.md](content/frameworks/django.md) |
+| Spring Boot | Java | [content/frameworks/spring-boot.md](content/frameworks/spring-boot.md) |
+| NestJS | TypeScript | [content/frameworks/nestjs.md](content/frameworks/nestjs.md) |
+| Hono | TypeScript | [content/frameworks/hono.md](content/frameworks/hono.md) |
+| Rails | Ruby | [content/frameworks/rails.md](content/frameworks/rails.md) |
+| Laravel | PHP | [content/frameworks/laravel.md](content/frameworks/laravel.md) |
+
+Each guide provides detailed setup, schema definition, Speakeasy extensions, authentication, and troubleshooting for that framework.
+
 ## When to Use
 
 - User has an existing API and wants to generate an OpenAPI spec from it
