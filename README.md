@@ -32,6 +32,7 @@ npx skills add speakeasy-api/skills
 
 | Skill | Use When... |
 |-------|-------------|
+| `speakeasy:speakeasy-context` | **Start here** — Use `speakeasy agent context` for accurate CLI info instead of web search. Provides feedback via `speakeasy agent feedback` |
 | `speakeasy:sdk-tf-generation-best-practices` | **Progressive Disclosure** — Comprehensive guide to all Speakeasy SDK and Terraform generation capability and best practices. Routes to detailed guides for generation workflows, language-specific patterns, customization, testing, and OpenAPI spec management |
 | `speakeasy:start-new-sdk-project` | You have an OpenAPI spec and want to generate an SDK |
 | `speakeasy:diagnose-generation-failure` | SDK generation failed, seeing "Step Failed: Workflow" |
@@ -68,7 +69,7 @@ speakeasy-api/skills/
 ├── skills/
 │   ├── start-new-sdk-project/
 │   │   └── SKILL.md
-│   └── ... (11 skills total)
+│   └── ... (13 skills total)
 ├── templates/
 │   └── SKILL.template.md
 ├── AGENTS.md              # Contributor guidance for AI agents
