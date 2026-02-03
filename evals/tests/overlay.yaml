@@ -4,49 +4,52 @@
 
 tests:
   - name: fix-poor-naming-with-overlay
-    skill: configure-speakeasy-extensions
+    skill: manage-openapi-overlays
     type: overlay
     spec_file: fixtures/petstore-poor-naming.yaml
     task: |
       The OpenAPI spec has missing operationIds which will result in poor SDK method names.
-      Create an overlay to add x-speakeasy-name-override and x-speakeasy-group extensions
-      to improve the SDK naming.
+      Create an overlay file that adds x-speakeasy-name-override and x-speakeasy-group extensions
+      to improve the SDK naming. Write a new overlay file, do not edit the spec directly.
     expected_extensions:
       - x-speakeasy-name-override
       - x-speakeasy-group
     # Will run semantic validation for naming overlay structure
 
   - name: add-offset-pagination-to-products
-    skill: configure-speakeasy-extensions
+    skill: manage-openapi-overlays
     type: overlay
     spec_file: fixtures/paginated-api.yaml
     task: |
       The /products endpoint uses offset/limit pagination (offset and limit query params).
-      The response has 'items' array and 'total' count. Create an overlay to add
-      x-speakeasy-pagination so the SDK can auto-paginate through all products.
+      The response has 'items' array and 'total' count. Create an overlay file that adds
+      x-speakeasy-pagination extension so the SDK can auto-paginate through all products.
+      Write a new overlay file, do not edit the spec directly.
     expected_extensions:
       - x-speakeasy-pagination
     # Semantic validation checks for type: offsetLimit, inputs, outputs
 
   - name: add-cursor-pagination-to-orders
-    skill: configure-speakeasy-extensions
+    skill: manage-openapi-overlays
     type: overlay
     spec_file: fixtures/paginated-api.yaml
     task: |
       The /orders endpoint uses cursor-based pagination. It takes a 'cursor' query param
       and returns 'next_cursor' in the response along with 'has_more' boolean.
-      Create an overlay to add x-speakeasy-pagination for cursor-based iteration.
+      Create an overlay file that adds x-speakeasy-pagination extension for cursor-based iteration.
+      Write a new overlay file, do not edit the spec directly.
     expected_extensions:
       - x-speakeasy-pagination
     # Semantic validation checks for type: cursor, nextCursor output
 
   - name: add-retry-configuration
-    skill: configure-speakeasy-extensions
+    skill: manage-openapi-overlays
     type: overlay
     spec_file: fixtures/petstore-minimal.yaml
     task: |
-      Create an overlay to add x-speakeasy-retries configuration with exponential backoff
+      Create an overlay file that adds x-speakeasy-retries configuration with exponential backoff
       for 5XX errors and 429 rate limits. Use sensible defaults for intervals.
+      Write a new overlay file, do not edit the spec directly.
     expected_extensions:
       - x-speakeasy-retries
       - backoff
@@ -54,35 +57,36 @@ tests:
     # Semantic validation checks for strategy, backoff config, statusCodes
 
   - name: add-open-enums
-    skill: configure-speakeasy-extensions
+    skill: manage-openapi-overlays
     type: overlay
     spec_file: fixtures/petstore-minimal.yaml
     task: |
-      Create an overlay to make all enums in the spec "open" using x-speakeasy-unknown-values
+      Create an overlay file that makes all enums "open" by adding x-speakeasy-unknown-values
       so the SDK handles unknown enum values gracefully without breaking.
+      Write a new overlay file, do not edit the spec directly.
     expected_extensions:
       - x-speakeasy-unknown-values
       - allow
 
   - name: add-server-url-override
-    skill: configure-speakeasy-extensions
+    skill: manage-openapi-overlays
     type: overlay
     spec_file: fixtures/petstore-minimal.yaml
     task: |
-      Create an overlay to customize the server URLs in the SDK.
-      Add both a production and staging server with appropriate descriptions.
+      Create an overlay file that adds both a production and staging server with appropriate descriptions.
+      Write a new overlay file, do not edit the spec directly.
     expected_extensions:
       - servers
       - url
       - description
 
   - name: add-deprecation-notices
-    skill: configure-speakeasy-extensions
+    skill: manage-openapi-overlays
     type: overlay
     spec_file: fixtures/petstore-minimal.yaml
     task: |
-      Create an overlay to mark certain operations as deprecated.
-      Add x-speakeasy-deprecation-message with a migration notice.
+      Create an overlay file that marks certain operations as deprecated and adds x-speakeasy-deprecation-message
+      with a migration notice. Write a new overlay file, do not edit the spec directly.
     expected_extensions:
       - deprecated
       - x-speakeasy-deprecation-message

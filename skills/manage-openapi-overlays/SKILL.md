@@ -1,6 +1,6 @@
 ---
 name: manage-openapi-overlays
-description: Use when creating, applying, or using overlays to customize SDK generation without editing the source spec. Triggers on "create overlay", "apply overlay", "overlay file", "customize SDK", "can't modify spec", "x-speakeasy extensions", "fix with overlay", "overlay fix", "overlay apply"
+description: Use when creating, applying, or validating overlay files including x-speakeasy extensions. Covers overlay syntax, JSONPath targeting, retries, pagination, naming, grouping, open enums, global headers, custom security. Triggers on "create overlay", "apply overlay", "overlay file", "x-speakeasy", "add extension", "configure retries", "add pagination", "overlay for retries".
 license: Apache-2.0
 ---
 
@@ -14,14 +14,17 @@ Set `SPEAKEASY_API_KEY` env var or run `speakeasy auth login`.
 
 ## When to Use
 
-- You need to customize SDK output but cannot modify the source spec
-- Adding x-speakeasy extensions for grouping, naming, or retries
-- Fixing lint issues without editing the original file
+Use this skill when you need to **manually work with overlay files**:
+
+- Creating an overlay file from scratch with specific JSONPath targets
 - Applying an existing overlay file to a spec
-- Testing overlay changes before adding to workflow
-- Lint errors exist but the source spec cannot be edited
-- Adding missing descriptions, tags, or operation names via overlay
-- User says: "create overlay", "apply overlay", "customize SDK", "can't modify spec", "fix with overlay"
+- Validating overlay syntax and structure
+- Comparing two specs to generate an overlay
+- Understanding overlay mechanics (actions, targets, update/remove)
+- Fixing lint issues via manual overlay creation
+- User says: "create overlay", "apply overlay", "overlay file", "manual overlay", "overlay syntax", "JSONPath targeting", "validate overlay"
+
+**NOT for**: AI-powered naming suggestions (see `improve-sdk-naming` instead)
 
 ## Inputs
 
@@ -161,6 +164,144 @@ speakeasy lint openapi --non-interactive -s openapi.yaml
 # 4. Regenerate the SDK
 speakeasy run --output console
 ```
+
+## Speakeasy Extensions Reference
+
+Extensions (`x-speakeasy-*`) customize SDK generation. Apply them via overlays.
+
+| Extension | Applies To | Purpose |
+|-----------|-----------|---------|
+| `x-speakeasy-retries` | Operation or root | Configure retry behavior |
+| `x-speakeasy-pagination` | Operation | Enable automatic pagination |
+| `x-speakeasy-name-override` | Operation | Override SDK method name |
+| `x-speakeasy-group` | Operation | Group methods under namespace |
+| `x-speakeasy-unknown-values` | Schema with enum | Allow unknown enum values |
+| `x-speakeasy-globals` | Root | Define SDK-wide parameters |
+| `x-speakeasy-custom-security-scheme` | Security scheme | Multi-part custom auth |
+
+### Retries
+
+```yaml
+actions:
+  - target: "$.paths['/resources'].get"  # Or "$" for global
+    update:
+      x-speakeasy-retries:
+        strategy: backoff
+        backoff:
+          initialInterval: 500      # ms
+          maxInterval: 60000        # ms
+          maxElapsedTime: 3600000   # ms
+          exponent: 1.5
+        statusCodes: ["5XX", "429"]
+        retryConnectionErrors: true
+```
+
+### Pagination
+
+**Offset/Limit:**
+```yaml
+actions:
+  - target: "$.paths['/users'].get"
+    update:
+      x-speakeasy-pagination:
+        type: offsetLimit
+        inputs:
+          - name: offset
+            in: parameters
+            type: offset
+          - name: limit
+            in: parameters
+            type: limit
+        outputs:
+          results: $.data
+          numPages: $.meta.total_pages
+```
+
+**Cursor:**
+```yaml
+actions:
+  - target: "$.paths['/events'].get"
+    update:
+      x-speakeasy-pagination:
+        type: cursor
+        inputs:
+          - name: cursor
+            in: parameters
+            type: cursor
+        outputs:
+          results: $.events
+          nextCursor: $.next_cursor
+```
+
+### Open Enums (Anti-Fragility)
+
+Prevent SDK breakage when APIs return new enum values:
+
+```yaml
+actions:
+  - target: "$.components.schemas.Status"
+    update:
+      x-speakeasy-unknown-values: allow
+```
+
+For all enums (add `x-speakeasy-jsonpath: rfc9535` at overlay root):
+```yaml
+actions:
+  - target: $..[?length(@.enum) > 1]
+    update:
+      x-speakeasy-unknown-values: allow
+```
+
+### Global Headers
+
+Add SDK-wide headers as constructor options:
+
+```yaml
+actions:
+  - target: $
+    update:
+      x-speakeasy-globals:
+        parameters:
+          - $ref: "#/components/parameters/TenantId"
+  - target: $.components
+    update:
+      parameters:
+        TenantId:
+          name: X-Tenant-Id
+          in: header
+          schema:
+            type: string
+```
+
+Result: `client = SDK(api_key="...", tenant_id="tenant-123")`
+
+### Custom Security Schemes
+
+For complex auth (HMAC, multi-part credentials):
+
+```yaml
+actions:
+  - target: $.components
+    update:
+      securitySchemes:
+        hmacAuth:
+          type: http
+          scheme: custom
+          x-speakeasy-custom-security-scheme:
+            schema:
+              type: object
+              properties:
+                keyId:
+                  type: string
+                keySecret:
+                  type: string
+  - target: $
+    update:
+      security:
+        - hmacAuth: []
+```
+
+With `envVarPrefix: MYAPI` in gen.yaml, generates env var support for `MYAPI_KEY_ID`, `MYAPI_KEY_SECRET`.
 
 ## JSONPath Targeting Reference
 

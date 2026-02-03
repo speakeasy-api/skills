@@ -1,7 +1,7 @@
 # Correctness tests: verify output uses valid Speakeasy syntax
 
 tests:
-  - skill: configure-speakeasy-extensions
+  - skill: manage-openapi-overlays
     prompt: "Add retry configuration to GET /users endpoint with exponential backoff"
     assertions:
       - type: contains
@@ -10,7 +10,7 @@ tests:
         value: "backoff"
       - type: valid_yaml
 
-  - skill: configure-speakeasy-extensions
+  - skill: manage-openapi-overlays
     prompt: "Make all enums in my OpenAPI spec open to handle unknown values"
     assertions:
       - type: contains
@@ -43,7 +43,7 @@ tests:
       - type: contains
         value: "app.openapi()"
 
-  - skill: generate-sdk-for-python
+  - skill: configure-sdk-options
     prompt: "What's the gen.yaml config for async Python SDK?"
     assertions:
       - type: contains

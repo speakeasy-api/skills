@@ -9,7 +9,7 @@ tests:
       - "Run speakeasy quickstart"
       - "Build with go build"
 
-  - skill: configure-speakeasy-extensions
+  - skill: manage-openapi-overlays
     prompt: "Make all enums open and add global retry configuration"
     required_steps:
       - "Create overlay file"

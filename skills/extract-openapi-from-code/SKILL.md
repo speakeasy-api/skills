@@ -368,6 +368,5 @@ actions:
 
 ## Related Skills
 
-- `configure-speakeasy-extensions` - Add x-speakeasy-* extensions
-- `manage-openapi-overlays` - Apply fixes via overlay
+- `manage-openapi-overlays` - Add x-speakeasy-* extensions via overlay
 - `start-new-sdk-project` - Generate SDK after extraction

@@ -22,13 +22,13 @@ tests:
         creates_file: .speakeasy/workflow.yaml
 
   - name: overlay-then-generate
-    skill: configure-speakeasy-extensions
+    skill: improve-sdk-naming
     type: workflow
     spec_file: fixtures/petstore-poor-naming.yaml
     task: |
-      Improve SDK quality through overlays then generate:
+      Get AI-powered naming suggestions and generate an SDK:
       1. Analyze the spec with speakeasy lint
-      2. Use speakeasy suggest to generate naming improvements
+      2. Run speakeasy suggest to generate AI-powered naming improvements
       3. Create the SDK with the improved naming
     steps:
       - name: lint-spec
@@ -41,10 +41,10 @@ tests:
     type: workflow
     spec_file: fixtures/petstore-poor-naming.yaml
     task: |
-      Follow the complete workflow to improve and generate an SDK:
-      1. Run speakeasy lint to identify issues
-      2. Create an overlay to fix the issues
-      3. Generate the SDK with the fixes applied
+      SDK generation is failing with validation errors. Diagnose and fix:
+      1. Run speakeasy lint to identify the root cause
+      2. Create an overlay to fix the validation issues
+      3. Regenerate the SDK to verify the fix worked
     steps:
       - name: lint-spec
         command: speakeasy lint
@@ -53,19 +53,20 @@ tests:
       - name: generate-sdk
         command: speakeasy quickstart
 
-  - name: multi-spec-merge-workflow
-    skill: merge-openapi-specs
-    type: workflow
-    spec_file: fixtures/petstore-minimal.yaml
-    task: |
-      Merge multiple OpenAPI specs and generate a unified SDK:
-      1. Validate both input specs with lint
-      2. Merge the specs using speakeasy merge
-      3. Generate the SDK from the merged spec
-    steps:
-      - name: lint-first-spec
-        command: speakeasy lint
-      - name: merge-specs
-        command: speakeasy merge
-      - name: generate-sdk
-        command: speakeasy run
+  # Disabled: merge-openapi-specs skill does not exist yet
+  # - name: multi-spec-merge-workflow
+  #   skill: merge-openapi-specs
+  #   type: workflow
+  #   spec_file: fixtures/petstore-minimal.yaml
+  #   task: |
+  #     Merge multiple OpenAPI specs and generate a unified SDK:
+  #     1. Validate both input specs with lint
+  #     2. Merge the specs using speakeasy merge
+  #     3. Generate the SDK from the merged spec
+  #   steps:
+  #     - name: lint-first-spec
+  #       command: speakeasy lint
+  #     - name: merge-specs
+  #       command: speakeasy merge
+  #     - name: generate-sdk
+  #       command: speakeasy run

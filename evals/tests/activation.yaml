@@ -1,15 +1,19 @@
 # Activation tests: verify skills trigger on correct phrases
 
 tests:
-  - skill: configure-speakeasy-extensions
+  - skill: manage-openapi-overlays
     should_activate:
       - "add retries to my SDK"
       - "configure x-speakeasy-pagination"
       - "make enums open"
       - "add global headers to SDK"
+      - "create overlay"
+      - "apply overlay to spec"
+      - "can't modify spec"
     should_not_activate:
       - "add retry logic to my code"
       - "configure pagination"
+      - "edit openapi directly"
 
   - skill: generate-terraform-provider
     should_activate:
@@ -29,24 +33,12 @@ tests:
       - "write OpenAPI spec"
       - "create API"
 
-  - skill: manage-openapi-overlays
-    should_activate:
-      - "create overlay"
-      - "apply overlay to spec"
-      - "can't modify spec"
-    should_not_activate:
-      - "edit openapi directly"
-
-  - skill: generate-sdk-for-python
+  - skill: configure-sdk-options
     should_activate:
       - "generate Python SDK"
       - "Python client library"
-    should_not_activate:
-      - "write Python code"
-
-  - skill: generate-sdk-for-typescript
-    should_activate:
       - "generate TypeScript SDK"
       - "npm package SDK"
     should_not_activate:
+      - "write Python code"
       - "write TypeScript"

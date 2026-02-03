@@ -1,9 +1,10 @@
 ---
 name: start-new-sdk-project
 description: >-
-  Use when starting a new SDK project, first-time Speakeasy setup, or completing an SDK generation workflow.
-  Triggers on "create SDK", "generate SDK", "new SDK", "quickstart", "get started with Speakeasy",
-  "initialize SDK project", "SDK generation workflow", "complete SDK workflow", "full SDK workflow".
+  Use when generating a new SDK from an OpenAPI spec. This is the PRIMARY skill for SDK generation.
+  Triggers on "create SDK", "generate SDK", "new SDK", "quickstart", "TypeScript SDK", "Python SDK",
+  "Go SDK", "Java SDK", "generate TypeScript", "generate Python", "generate Go", "make SDK",
+  "build SDK", "SDK from OpenAPI", "SDK from spec", "initialize SDK project".
 license: Apache-2.0
 ---
 
@@ -15,10 +16,11 @@ license: Apache-2.0
 
 ## When to Use
 
+- Generating any SDK from an OpenAPI spec (TypeScript, Python, Go, Java, etc.)
 - Starting a brand new SDK project
 - No `.speakeasy/workflow.yaml` exists yet
 - First-time Speakeasy setup
-- User says: "create SDK", "new SDK", "quickstart", "get started with Speakeasy"
+- User says: "generate SDK", "TypeScript SDK", "Python SDK", "Go SDK", "create SDK", "new SDK"
 
 ## Inputs
 
@@ -179,6 +181,4 @@ speakeasy quickstart --skip-interactive --output console \
 
 - `diagnose-generation-failure` - When generation fails
 - `manage-openapi-overlays` - Customize spec with overlays
-- `generate-sdk-for-python` - Python-specific configuration
-- `generate-sdk-for-typescript` - TypeScript-specific configuration
-- `generate-sdk-for-go` - Go-specific configuration
+- `configure-sdk-options` - Language-specific gen.yaml configuration for all supported languages

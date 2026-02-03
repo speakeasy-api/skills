@@ -155,6 +155,6 @@ shared/
 ## Related Skills
 
 - `start-new-sdk-project` - Initial SDK setup
-- `generate-sdk-for-typescript` - TypeScript configuration
+- `configure-sdk-options` - Language-specific configuration
 - `manage-openapi-overlays` - Per-source overlays
 - `orchestrate-multi-repo-sdks` - Single repo per language
