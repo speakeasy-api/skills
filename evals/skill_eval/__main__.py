@@ -71,6 +71,7 @@ def run(
         skill-eval run --keep-workspaces  # Keep workspaces for debugging
         skill-eval run --skills speakeasy-context  # Only install speakeasy-context skill
         skill-eval run --no-skills  # Run without any skills
+        skill-eval run --debug  # Stream agent events
     """
     runner = EvalRunner(model=model, verbose=verbose)
     # TODO: Add keep_workspaces support to EvalRunner
