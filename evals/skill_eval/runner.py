@@ -7,6 +7,7 @@ from typing import Any
 import yaml
 
 from .evaluator import ExecutionObserver, SkillEvaluator
+from .fixtures import FixtureLoader
 
 
 class EvalRunner:
@@ -18,6 +19,7 @@ class EvalRunner:
         self.tests_dir = Path(__file__).parent.parent / "tests"
         self.fixtures_dir = Path(__file__).parent.parent / "fixtures"
         self.skills_dir = Path(__file__).parent.parent.parent / "skills"
+        self.fixture_loader = FixtureLoader(self.fixtures_dir)
 
     def load_tests(self, suite: str) -> list[dict[str, Any]]:
         """Load test cases from YAML files."""
@@ -31,14 +33,8 @@ class EvalRunner:
                     data = yaml.safe_load(f)
                     for test in data.get("tests", []):
                         test["suite"] = s
-                        # Load spec content from file if spec_file is provided
-                        if "spec_file" in test:
-                            spec_path = self.fixtures_dir.parent / test["spec_file"]
-                            if spec_path.exists():
-                                test["spec"] = spec_path.read_text()
-                            else:
-                                test["spec"] = None
-                                test["error"] = f"Spec file not found: {test['spec_file']}"
+                        # Use fixture loader for all fixture types
+                        test = self.fixture_loader.load(test)
                         tests.append(test)
         return tests
 
@@ -50,6 +46,12 @@ class EvalRunner:
         """Load skill content from SKILL.md file."""
         skill_path = self.skills_dir / skill_name / "SKILL.md"
         return skill_path.read_text() if skill_path.exists() else None
+
+    def clear_fixture_cache(self) -> None:
+        """Clear the fixture loader's repo cache."""
+        self.fixture_loader.clear_cache()
+        if self.verbose:
+            print("Fixture cache cleared")
 
     async def run(
         self,

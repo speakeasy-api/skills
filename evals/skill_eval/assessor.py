@@ -1243,3 +1243,372 @@ class WorkspaceAssessor:
 
         result.summary = f"{result.passed_count}/{len(result.checks)} naming overlay checks passed"
         return result
+
+    def assess_overlay_in_workflow(self, overlay_path: Path) -> AssessmentResult:
+        """Check if an overlay file is referenced in workflow.yaml.
+
+        This validates that the overlay will actually be used during generation.
+        """
+        result = AssessmentResult(passed=True)
+
+        workflow_path = self.workspace_dir / ".speakeasy" / "workflow.yaml"
+
+        if not workflow_path.exists():
+            result.add_check(
+                "workflow_exists",
+                False,
+                ".speakeasy/workflow.yaml not found - overlay won't be used"
+            )
+            result.passed = False
+            return result
+
+        result.add_check("workflow_exists", True, ".speakeasy/workflow.yaml found")
+
+        try:
+            workflow = yaml.safe_load(workflow_path.read_text())
+        except yaml.YAMLError as e:
+            result.add_check("workflow_valid", False, f"Invalid workflow YAML: {e}")
+            result.passed = False
+            return result
+
+        # Get relative path of overlay from workspace
+        try:
+            overlay_rel = overlay_path.relative_to(self.workspace_dir)
+        except ValueError:
+            overlay_rel = overlay_path
+
+        overlay_name = overlay_path.name
+        overlay_rel_str = str(overlay_rel)
+
+        # Check if overlay is referenced in workflow sources
+        # Workflow structure: sources -> <source_name> -> overlays: [list of overlay refs]
+        sources = workflow.get("sources", {})
+        overlay_referenced = False
+        referenced_in_source = None
+
+        for source_name, source_config in sources.items():
+            if not isinstance(source_config, dict):
+                continue
+
+            overlays = source_config.get("overlays", [])
+            if not isinstance(overlays, list):
+                continue
+
+            for overlay_ref in overlays:
+                # overlay_ref can be a string path or a dict with 'local' key
+                if isinstance(overlay_ref, str):
+                    ref_path = overlay_ref
+                elif isinstance(overlay_ref, dict):
+                    ref_path = overlay_ref.get("local", overlay_ref.get("path", ""))
+                else:
+                    continue
+
+                # Check if the reference matches the overlay file
+                # Match by exact path, relative path, or just filename
+                if (ref_path == overlay_rel_str or
+                    ref_path == str(overlay_rel) or
+                    ref_path.endswith(overlay_name) or
+                    overlay_rel_str.endswith(ref_path)):
+                    overlay_referenced = True
+                    referenced_in_source = source_name
+                    break
+
+            if overlay_referenced:
+                break
+
+        if overlay_referenced:
+            result.add_check(
+                "overlay_in_workflow",
+                True,
+                f"Overlay referenced in workflow source '{referenced_in_source}'"
+            )
+        else:
+            result.add_check(
+                "overlay_in_workflow",
+                False,
+                f"Overlay '{overlay_name}' not found in workflow.yaml sources - it won't be applied"
+            )
+            result.passed = False
+
+        result.summary = f"Overlay workflow integration: {'OK' if result.passed else 'MISSING'}"
+        return result
+
+    def assess_type_overlay(
+        self, overlay_path: Path, scoring: dict[str, Any]
+    ) -> AssessmentResult:
+        """Assess overlay for type/format corrections with scoring.
+
+        Supports:
+        - required checks (target_contains + has) - must pass for overall pass
+        - bonus checks (same structure) - add points but don't fail
+        - negative checks (target_not_contains) - must pass for overall pass
+        """
+        result = AssessmentResult(passed=True)
+
+        if not overlay_path.exists():
+            result.add_check("overlay_exists", False, f"{overlay_path} not found")
+            result.passed = False
+            return result
+
+        try:
+            content = yaml.safe_load(overlay_path.read_text())
+        except yaml.YAMLError as e:
+            result.add_check("valid_yaml", False, f"Invalid YAML: {e}")
+            result.passed = False
+            return result
+
+        result.add_check("valid_yaml", True, "Valid YAML")
+
+        actions = content.get("actions", [])
+        if not actions:
+            result.add_check("has_actions", False, "No actions in overlay")
+            result.passed = False
+            return result
+
+        result.add_check("has_actions", True, f"{len(actions)} action(s) found")
+
+        # Convert actions to searchable format
+        action_texts = []
+        for action in actions:
+            target = action.get("target", "")
+            update = action.get("update", {})
+            # Serialize the action for text matching
+            action_text = f"target: {target}\n" + yaml.dump(update, default_flow_style=False)
+            action_texts.append((target, update, action_text))
+
+        total_points = 0
+        max_points = 0
+        bonus_points = 0
+        max_bonus = 0
+
+        # Required checks
+        for check in scoring.get("required", []):
+            name = check["name"]
+            target_pattern = check.get("target_contains", "")
+            expected_value = check.get("has", "")
+            points = check.get("points", 10)
+            description = check.get("description", name)
+            max_points += points
+
+            found = self._find_action_matching(action_texts, target_pattern, expected_value)
+            if found:
+                total_points += points
+                result.add_check(name, True, f"{description} (+{points}pts)")
+            else:
+                result.add_check(name, False, f"{description} - not found")
+                result.passed = False
+
+        # Bonus checks
+        for check in scoring.get("bonus", []):
+            name = check["name"]
+            target_pattern = check.get("target_contains", "")
+            expected_value = check.get("has", "")
+            points = check.get("points", 5)
+            description = check.get("description", name)
+            max_bonus += points
+
+            found = self._find_action_matching(action_texts, target_pattern, expected_value)
+            if found:
+                bonus_points += points
+                result.add_check(name, True, f"BONUS: {description} (+{points}pts)")
+            else:
+                # Bonus checks don't fail the test
+                result.add_check(name, True, f"BONUS: {description} - not applied (0pts)")
+
+        # Negative checks (things that should NOT be in the overlay)
+        for check in scoring.get("negative", []):
+            name = check["name"]
+            forbidden_pattern = check.get("target_not_contains", "")
+            description = check.get("description", name)
+
+            found = self._find_action_targeting(action_texts, forbidden_pattern)
+            if found:
+                result.add_check(name, False, f"CONSTRAINT VIOLATED: {description}")
+                result.passed = False
+            else:
+                result.add_check(name, True, f"Constraint respected: {description}")
+
+        # Store scores in result for reporting
+        result.checks.append({
+            "name": "scoring_summary",
+            "passed": True,
+            "details": f"Required: {total_points}/{max_points}, Bonus: {bonus_points}/{max_bonus}",
+            "score": total_points + bonus_points,
+            "max_score": max_points + max_bonus,
+            "required_score": total_points,
+            "max_required": max_points,
+            "bonus_score": bonus_points,
+            "max_bonus": max_bonus,
+        })
+
+        result.summary = f"{total_points + bonus_points}/{max_points + max_bonus} points, {result.passed_count}/{len(result.checks)} checks"
+        return result
+
+    def _find_action_matching(
+        self, action_texts: list[tuple[str, dict, str]], target_pattern: str, expected_value: str
+    ) -> bool:
+        """Find an action that matches both target pattern and contains expected value."""
+        for target, update, action_text in action_texts:
+            # Check if target contains the pattern
+            if target_pattern.lower() in target.lower():
+                # Check if the update contains the expected value
+                if expected_value.lower() in action_text.lower():
+                    return True
+            # Also check if the pattern appears anywhere in the action
+            if target_pattern.lower() in action_text.lower() and expected_value.lower() in action_text.lower():
+                return True
+        return False
+
+    def _find_action_targeting(
+        self, action_texts: list[tuple[str, dict, str]], pattern: str
+    ) -> bool:
+        """Check if any action targets something matching the pattern."""
+        for target, update, action_text in action_texts:
+            if pattern.lower() in target.lower():
+                return True
+        return False
+
+    def assess_api_types(
+        self, api_config: dict[str, Any]
+    ) -> AssessmentResult:
+        """Validate proposed type changes against real API response.
+
+        Makes a real API call and verifies the actual JSON types match
+        what the overlay proposes.
+
+        Args:
+            api_config: Configuration including:
+                - env_var: Environment variable containing API key
+                - endpoint: API endpoint URL
+                - request: Request body to send
+                - expected_types: Dict mapping JSON paths to expected types
+        """
+        import json
+        import os
+        import urllib.request
+        import urllib.error
+
+        result = AssessmentResult(passed=True)
+
+        # Check if API key is available
+        env_var = api_config.get("env_var", "API_KEY")
+        api_key = os.environ.get(env_var)
+
+        if not api_key:
+            result.add_check(
+                "api_key_available",
+                True,  # Not a failure, just skipped
+                f"{env_var} not set - API validation skipped"
+            )
+            result.summary = "API validation skipped (no API key)"
+            return result
+
+        result.add_check("api_key_available", True, f"{env_var} found")
+
+        # Make API request
+        endpoint = api_config.get("endpoint", "")
+        request_body = api_config.get("request", {})
+        expected_types = api_config.get("expected_types", {})
+
+        try:
+            req_data = json.dumps(request_body).encode("utf-8")
+            req = urllib.request.Request(
+                endpoint,
+                data=req_data,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                method="POST",
+            )
+
+            with urllib.request.urlopen(req, timeout=30) as response:
+                response_data = json.loads(response.read().decode("utf-8"))
+
+            result.add_check("api_request", True, "API request successful")
+
+        except urllib.error.HTTPError as e:
+            result.add_check("api_request", False, f"HTTP {e.code}: {e.reason}")
+            result.passed = False
+            result.summary = f"API validation failed: HTTP {e.code}"
+            return result
+        except Exception as e:
+            result.add_check("api_request", False, f"Request failed: {e}")
+            result.passed = False
+            result.summary = f"API validation failed: {e}"
+            return result
+
+        # Validate types in response
+        for json_path, expected_type in expected_types.items():
+            actual_value = self._get_json_path(response_data, json_path)
+
+            if actual_value is None:
+                result.add_check(
+                    f"type_{json_path}",
+                    True,  # Missing field is ok
+                    f"{json_path}: field not present in response"
+                )
+                continue
+
+            actual_type = self._get_json_type(actual_value)
+            type_matches = actual_type == expected_type
+
+            result.add_check(
+                f"type_{json_path}",
+                type_matches,
+                f"{json_path}: expected {expected_type}, got {actual_type} (value: {actual_value})"
+            )
+
+            if not type_matches:
+                # Type mismatch is informational, not a failure
+                # The overlay change might be an improvement even if current API returns something else
+                pass
+
+        result.summary = f"API validation: {result.passed_count}/{len(result.checks)} type checks"
+        return result
+
+    def _get_json_path(self, data: Any, path: str) -> Any:
+        """Get value at a JSON path like 'choices[0].index' or 'usage.prompt_tokens'."""
+        parts = path.replace("[", ".").replace("]", "").split(".")
+        current = data
+
+        for part in parts:
+            if not part:
+                continue
+            if isinstance(current, dict):
+                current = current.get(part)
+            elif isinstance(current, list):
+                try:
+                    idx = int(part)
+                    current = current[idx] if idx < len(current) else None
+                except (ValueError, IndexError):
+                    return None
+            else:
+                return None
+
+            if current is None:
+                return None
+
+        return current
+
+    def _get_json_type(self, value: Any) -> str:
+        """Determine the JSON/Python type of a value."""
+        if isinstance(value, bool):
+            return "boolean"
+        elif isinstance(value, int):
+            return "integer"
+        elif isinstance(value, float):
+            # Check if it's actually an integer value
+            if value == int(value):
+                return "integer"
+            return "number"
+        elif isinstance(value, str):
+            return "string"
+        elif isinstance(value, list):
+            return "array"
+        elif isinstance(value, dict):
+            return "object"
+        elif value is None:
+            return "null"
+        else:
+            return "unknown"

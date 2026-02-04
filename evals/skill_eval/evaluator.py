@@ -454,6 +454,11 @@ class SkillEvaluator:
 
         with Workspace() as workspace:
             workspace.setup(spec_content)
+
+            for rel_path, content in test.get("fixture_files", {}).items():
+                workspace.write_file(Path(rel_path).name, content)
+
+            self._setup_speakeasy_project(workspace, test)
             skills_installed = self._setup_skills_in_workspace(workspace, skill_names) if with_skills else 0
 
             try:
@@ -547,6 +552,23 @@ class SkillEvaluator:
                             if not check["passed"]:
                                 assessment.passed = False
 
+                # Check for scoring-based type overlay validation
+                scoring_config = test.get("scoring")
+                if scoring_config:
+                    type_assessment = assessor.assess_type_overlay(overlay_path, scoring_config)
+                    for check in type_assessment.checks:
+                        if check["name"] not in ["overlay_exists", "valid_yaml", "has_actions"]:
+                            assessment.checks.append(check)
+                            if not check["passed"]:
+                                assessment.passed = False
+
+                # Check that overlay is referenced in workflow.yaml
+                workflow_check = assessor.assess_overlay_in_workflow(overlay_path)
+                for check in workflow_check.checks:
+                    assessment.checks.append(check)
+                    if not check["passed"]:
+                        assessment.passed = False
+
                 overlay_results.append({
                     "file": overlay_file,
                     "passed": assessment.passed,
@@ -555,11 +577,63 @@ class SkillEvaluator:
                 if not assessment.passed:
                     all_passed = False
 
+            modified_files = workspace.get_changes().get("modified", [])
+            spec_modified = any(
+                f for f in modified_files
+                if f.endswith(".yaml") and "overlay" not in f.lower() and "workflow" not in f.lower()
+                and (f == "openapi.yaml" or "openapi" in f.lower() or "spec" in f.lower())
+            )
+
+            ran_speakeasy_run = any(
+                "speakeasy run" in cmd or "speakeasy generate" in cmd
+                for cmd in speakeasy_commands
+            )
+
+            spec_check = {
+                "name": "spec_not_modified",
+                "passed": not spec_modified,
+                "details": "Spec modified directly" if spec_modified else "Spec preserved"
+            }
+            sdk_regen_check = {
+                "name": "sdk_regenerated",
+                "passed": ran_speakeasy_run,
+                "details": "SDK regenerated" if ran_speakeasy_run else "SDK not regenerated"
+            }
+
+            if overlay_results:
+                overlay_results[0]["checks"].extend([spec_check, sdk_regen_check])
+                if spec_modified or not ran_speakeasy_run:
+                    overlay_results[0]["passed"] = False
+                    all_passed = False
+            elif spec_modified or not ran_speakeasy_run:
+                all_passed = False
+                overlay_results.append({
+                    "file": "(integration checks)",
+                    "passed": False,
+                    "checks": [spec_check, sdk_regen_check],
+                })
+
+            api_validation_result = None
+            api_config = test.get("api_validation")
+            if api_config and api_config.get("enabled", False):
+                agent_tested_api = any(
+                    "curl" in cmd or "http" in cmd.lower() or "test" in cmd
+                    for cmd in [tc.get("input", {}).get("command", "") if isinstance(tc.get("input"), dict) else ""
+                               for tc in tool_calls if tc["name"] == "Bash"]
+                )
+                if agent_tested_api or api_config.get("always_run", False):
+                    api_validation_result = assessor.assess_api_types(api_config)
+
             return {
                 "skill": skill_name,
                 "type": "overlay",
                 "passed": all_passed,
                 "overlays": overlay_results,
+                "api_validation": {
+                    "performed": api_validation_result is not None,
+                    "checks": api_validation_result.checks if api_validation_result else [],
+                    "summary": api_validation_result.summary if api_validation_result else "not performed",
+                } if api_config else None,
                 "skills_installed": skills_installed,
                 "skills_invoked": skills_invoked,
                 "expected_skill_invoked": expected_skill_invoked,
@@ -701,6 +775,38 @@ class SkillEvaluator:
                 "turns_used": turns_used,
                 "max_turns": max_turns,
             }
+
+    def _setup_speakeasy_project(self, workspace: "Workspace", test: dict[str, Any]) -> None:
+        """Create .speakeasy/workflow.yaml and gen.yaml if missing."""
+        speakeasy_dir = workspace.base_dir / ".speakeasy"
+        target = test.get("target", "go")
+
+        workflow_path = speakeasy_dir / "workflow.yaml"
+        if not workflow_path.exists():
+            speakeasy_dir.mkdir(parents=True, exist_ok=True)
+            workflow_path.write_text(f"""workflowVersion: 1.0.0
+sources:
+  openapi-source:
+    inputs:
+      - location: ./openapi.yaml
+targets:
+  {target}-sdk:
+    target: {target}
+    source: openapi-source
+    output: ./sdk
+""")
+
+        gen_yaml_path = speakeasy_dir / "gen.yaml"
+        if not gen_yaml_path.exists():
+            gen_yaml_path.write_text(f"""configVersion: 2.0.0
+generation:
+  sdkClassName: SDK
+{target}:
+  version: 0.1.0
+  packageName: github.com/example/sdk
+""")
+
+        (workspace.base_dir / "overlays").mkdir(parents=True, exist_ok=True)
 
     def _extract_speakeasy_commands(self, tool_calls: list[dict]) -> list[str]:
         """Extract speakeasy commands from Bash tool calls."""

@@ -190,9 +190,62 @@ def single(test_name: str, verbose: bool, debug: bool, model: str, skills: str |
 
     if result.get("checks"):
         console.print("\n[bold]Checks:[/bold]")
+        scoring_summary = None
         for check in result["checks"]:
+            # Extract scoring summary for special display
+            if check.get("name") == "scoring_summary":
+                scoring_summary = check
+                continue
             status = "[green]✓[/green]" if check.get("passed") else "[red]✗[/red]"
-            console.print(f"  {status} {check.get('name', check.get('details', ''))}")
+            details = check.get("details", check.get("name", ""))
+            console.print(f"  {status} {details}")
+
+        # Display scoring summary prominently if present
+        if scoring_summary:
+            score = scoring_summary.get("score", 0)
+            max_score = scoring_summary.get("max_score", 0)
+            required = scoring_summary.get("required_score", 0)
+            max_required = scoring_summary.get("max_required", 0)
+            bonus = scoring_summary.get("bonus_score", 0)
+            max_bonus = scoring_summary.get("max_bonus", 0)
+
+            console.print(f"\n[bold]Scoring:[/bold]")
+            pct = (score / max_score * 100) if max_score > 0 else 0
+            color = "green" if pct >= 80 else "yellow" if pct >= 50 else "red"
+            console.print(f"  [{color}]Total: {score}/{max_score} points ({pct:.0f}%)[/{color}]")
+            console.print(f"  [dim]Required: {required}/{max_required}[/dim]")
+            if max_bonus > 0:
+                console.print(f"  [dim]Bonus: {bonus}/{max_bonus}[/dim]")
+
+    # Display overlay-specific results
+    if result.get("overlays"):
+        for overlay in result["overlays"]:
+            console.print(f"\n[bold]Overlay: {overlay.get('file', 'unknown')}[/bold]")
+            for check in overlay.get("checks", []):
+                if check.get("name") == "scoring_summary":
+                    score = check.get("score", 0)
+                    max_score = check.get("max_score", 0)
+                    required = check.get("required_score", 0)
+                    max_required = check.get("max_required", 0)
+                    bonus = check.get("bonus_score", 0)
+                    max_bonus = check.get("max_bonus", 0)
+
+                    pct = (score / max_score * 100) if max_score > 0 else 0
+                    color = "green" if pct >= 80 else "yellow" if pct >= 50 else "red"
+                    console.print(f"  [{color}]Score: {score}/{max_score} points ({pct:.0f}%)[/{color}]")
+                    console.print(f"  [dim]Required: {required}/{max_required}, Bonus: {bonus}/{max_bonus}[/dim]")
+                else:
+                    status = "[green]✓[/green]" if check.get("passed") else "[red]✗[/red]"
+                    details = check.get("details", check.get("name", ""))
+                    console.print(f"  {status} {details}")
+
+    # Display API validation results
+    if result.get("api_validation") and result["api_validation"].get("performed"):
+        console.print(f"\n[bold]API Validation:[/bold]")
+        console.print(f"  [dim]{result['api_validation'].get('summary', 'completed')}[/dim]")
+        for check in result["api_validation"].get("checks", []):
+            status = "[green]✓[/green]" if check.get("passed") else "[yellow]![/yellow]"
+            console.print(f"  {status} {check.get('details', check.get('name', ''))}")
 
     if result.get("speakeasy_commands"):
         console.print(f"\n[bold]Speakeasy commands used:[/bold]")
@@ -418,6 +471,39 @@ def compare(suite: str, model: str, debug: bool, skills: str | None, test_filter
             results_with = asyncio.run(runner.run(suite=suite, with_skills=True, skill_names=skill_names, test_filter=test_filter))
 
     reporter.print_comparison(results_without, results_with)
+
+
+@cli.command("clear-cache")
+def clear_cache():
+    """Clear the fixture cache (cloned git repositories).
+
+    Examples:
+
+        skill-eval clear-cache
+    """
+    runner = EvalRunner()
+    cache_dir = runner.fixture_loader.cache_dir
+
+    if not cache_dir.exists() or not any(cache_dir.iterdir()):
+        console.print("[green]Cache is empty[/green]")
+        return
+
+    # Count cached repos
+    repos = list(cache_dir.iterdir())
+    total_size = sum(
+        sum(f.stat().st_size for f in repo.rglob('*') if f.is_file())
+        for repo in repos if repo.is_dir()
+    )
+    size_mb = total_size / (1024 * 1024)
+
+    console.print(f"[bold]Cached repositories: {len(repos)}[/bold]")
+    console.print(f"[dim]Total size: {size_mb:.1f} MB[/dim]\n")
+
+    for repo in repos:
+        console.print(f"  {repo.name}")
+
+    runner.fixture_loader.clear_cache()
+    console.print(f"\n[green]Cache cleared![/green]")
 
 
 if __name__ == "__main__":
