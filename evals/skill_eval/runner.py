@@ -59,6 +59,7 @@ class EvalRunner:
         with_skills: bool = True,
         skill_names: list[str] | None = None,
         max_concurrent: int = 3,
+        observer: ExecutionObserver | None = None,
     ) -> dict[str, Any]:
         """Run evaluation suite.
 
@@ -69,6 +70,7 @@ class EvalRunner:
             with_skills: If True, install skills in workspace
             skill_names: Optional list of specific skill names to install. If None and with_skills=True, installs all.
             max_concurrent: Maximum concurrent test runs
+            observer: Optional observer for real-time event streaming (forces max_concurrent=1)
         """
         tests = self.load_tests(suite)
 
@@ -105,13 +107,15 @@ class EvalRunner:
             })
 
         # Run valid tests with concurrency limit
-        sem = asyncio.Semaphore(max_concurrent)
+        # Force sequential execution when observer is provided to avoid interleaved output
+        effective_max_concurrent = 1 if observer else max_concurrent
+        sem = asyncio.Semaphore(effective_max_concurrent)
 
         async def run_test(test: dict) -> dict:
             async with sem:
                 if self.verbose:
                     print(f"Running: {test.get('name', 'unnamed')}...")
-                result = await evaluator.evaluate(test, with_skills=with_skills, skill_names=skill_names)
+                result = await evaluator.evaluate(test, with_skills=with_skills, skill_names=skill_names, observer=observer)
                 result["name"] = test.get("name", "unnamed")
                 return result
 

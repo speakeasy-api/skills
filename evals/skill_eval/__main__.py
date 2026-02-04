@@ -39,6 +39,7 @@ def cli():
 @click.option("--test", "test_filter", help="Run tests matching this name pattern")
 @click.option("--output", "-o", type=click.Path(), help="Output results to JSON file")
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
+@click.option("--debug", "-d", is_flag=True, help="Stream agent events in real-time (tool calls, thinking, text)")
 @click.option("--model", default="claude-sonnet-4-20250514", help="Model to use for agent")
 @click.option("--max-concurrent", default=3, help="Max concurrent test runs")
 @click.option("--track/--no-track", default=True, help="Track results in VCS history")
@@ -51,6 +52,7 @@ def run(
     test_filter: str | None,
     output: str | None,
     verbose: bool,
+    debug: bool,
     model: str,
     max_concurrent: int,
     track: bool,
@@ -64,6 +66,7 @@ def run(
         skill-eval run --suite generation
         skill-eval run --skill start-new-sdk-project
         skill-eval run --test typescript -v
+        skill-eval run --test typescript --debug  # Stream agent events
         skill-eval run --no-track  # Skip history tracking
         skill-eval run --keep-workspaces  # Keep workspaces for debugging
         skill-eval run --skills speakeasy-context  # Only install speakeasy-context skill
@@ -78,17 +81,22 @@ def run(
     skill_names = [s.strip() for s in skills.split(",")] if skills else None
     with_skills = not no_skills
 
+    # Create observer for debug mode
+    observer = RichConsoleObserver(console) if debug else None
+
     skill_desc = "no skills" if no_skills else (f"skills: {', '.join(skill_names)}" if skill_names else "all skills")
     console.print(Panel.fit(
         f"[bold]Running {suite} evaluations[/bold]\n"
         f"Model: {model}\n"
         f"Skills: {skill_desc}\n"
-        f"Concurrent: {max_concurrent}\n"
-        f"Tracking: {'enabled' if track else 'disabled'}",
+        f"Concurrent: {1 if debug else max_concurrent}\n"
+        f"Tracking: {'enabled' if track else 'disabled'}"
+        + ("\n[yellow]Debug mode: streaming agent events[/yellow]" if debug else ""),
         title="Skill Eval"
     ))
 
-    with console.status("[bold green]Running evaluations..."):
+    if debug:
+        console.print("[dim]Debug mode: streaming agent events...[/dim]\n")
         results = asyncio.run(runner.run(
             suite=suite,
             skill_filter=skill,
@@ -96,7 +104,18 @@ def run(
             max_concurrent=max_concurrent,
             with_skills=with_skills,
             skill_names=skill_names,
+            observer=observer,
         ))
+    else:
+        with console.status("[bold green]Running evaluations..."):
+            results = asyncio.run(runner.run(
+                suite=suite,
+                skill_filter=skill,
+                test_filter=test_filter,
+                max_concurrent=max_concurrent,
+                with_skills=with_skills,
+                skill_names=skill_names,
+            ))
 
     reporter.print_results(results)
 
@@ -352,9 +371,10 @@ def trend(count: int):
 @cli.command()
 @click.option("--suite", type=click.Choice(["all", "generation", "overlay", "diagnosis", "workflow"]), required=True)
 @click.option("--model", default="claude-sonnet-4-20250514", help="Model to use")
+@click.option("--debug", "-d", is_flag=True, help="Stream agent events in real-time (tool calls, thinking, text)")
 @click.option("--skills", help="Comma-separated list of specific skills to install (default: all)")
 @click.option("--test", "test_filter", help="Run tests matching this name pattern")
-def compare(suite: str, model: str, skills: str | None, test_filter: str | None):
+def compare(suite: str, model: str, debug: bool, skills: str | None, test_filter: str | None):
     """Compare results with and without skills loaded.
 
     This helps measure the effectiveness of skills by comparing
@@ -366,6 +386,7 @@ def compare(suite: str, model: str, skills: str | None, test_filter: str | None)
         skill-eval compare --suite generation --skills speakeasy-context
         skill-eval compare --suite generation --skills speakeasy-context,start-new-sdk-project
         skill-eval compare --suite generation --test typescript
+        skill-eval compare --suite generation --test typescript --debug
     """
     runner = EvalRunner(model=model)
     reporter = Reporter(console)
@@ -373,16 +394,27 @@ def compare(suite: str, model: str, skills: str | None, test_filter: str | None)
     # Parse skill names if provided
     skill_names = [s.strip() for s in skills.split(",")] if skills else None
 
+    # Create observer for debug mode
+    observer = RichConsoleObserver(console) if debug else None
+
     skill_desc = f"skills: {', '.join(skill_names)}" if skill_names else "all skills"
     console.print(f"\n[bold]Comparing {suite} results with/without {skill_desc}[/bold]\n")
+    if debug:
+        console.print("[dim]Debug mode: streaming agent events...[/dim]\n")
 
     console.print("[bold]Running WITHOUT skills...[/bold]")
-    with console.status("[yellow]Testing base model..."):
-        results_without = asyncio.run(runner.run(suite=suite, with_skills=False, test_filter=test_filter))
+    if debug:
+        results_without = asyncio.run(runner.run(suite=suite, with_skills=False, test_filter=test_filter, observer=observer))
+    else:
+        with console.status("[yellow]Testing base model..."):
+            results_without = asyncio.run(runner.run(suite=suite, with_skills=False, test_filter=test_filter))
 
     console.print("\n[bold]Running WITH skills...[/bold]")
-    with console.status("[green]Testing with skills..."):
-        results_with = asyncio.run(runner.run(suite=suite, with_skills=True, skill_names=skill_names, test_filter=test_filter))
+    if debug:
+        results_with = asyncio.run(runner.run(suite=suite, with_skills=True, skill_names=skill_names, test_filter=test_filter, observer=observer))
+    else:
+        with console.status("[green]Testing with skills..."):
+            results_with = asyncio.run(runner.run(suite=suite, with_skills=True, skill_names=skill_names, test_filter=test_filter))
 
     reporter.print_comparison(results_without, results_with)
 
