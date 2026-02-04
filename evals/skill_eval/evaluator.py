@@ -17,9 +17,11 @@ from claude_agent_sdk import (
     ClaudeSDKClient,
     ClaudeAgentOptions,
     AssistantMessage,
+    PermissionResultAllow,
     ResultMessage,
     TextBlock,
     ThinkingBlock,
+    ToolPermissionContext,
     ToolUseBlock,
 )
 
@@ -134,6 +136,14 @@ class SkillEvaluator:
         Returns:
             tuple of (agent_output, tool_calls, total_cost, turns_used)
         """
+        # Auto-approve all tool calls including plan mode tools
+        async def auto_approve_tools(
+            tool_name: str,
+            tool_input: dict[str, Any],
+            context: ToolPermissionContext,
+        ) -> PermissionResultAllow:
+            return PermissionResultAllow()
+
         options = ClaudeAgentOptions(
             model=self.model,
             max_turns=max_turns,
@@ -144,6 +154,8 @@ class SkillEvaluator:
             allowed_tools=["Skill", "Bash", "Read", "Write", "Glob", "Grep"],
             # Auto-accept file edits and bash commands in the workspace
             permission_mode="bypassPermissions",
+            # Auto-approve all tools (including EnterPlanMode/ExitPlanMode)
+            can_use_tool=auto_approve_tools,
         )
 
         tool_calls = []
