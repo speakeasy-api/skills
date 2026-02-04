@@ -105,6 +105,51 @@ class RichConsoleObserver:
                 ),
             )
 
+        elif event.type == "input_request":
+            questions = event.content.get("questions", [])
+            auto_answers = event.content.get("auto_answers", {})
+
+            self.console.print()
+            self.console.print(
+                f"[dim]{ts}[/] [bold yellow]Clarifying Question (AskUserQuestion)[/]",
+                highlight=False,
+            )
+
+            for q in questions:
+                question_text = q.get("question", "")
+                header = q.get("header", "")
+                options = q.get("options", [])
+                multi_select = q.get("multiSelect", False)
+                auto_answer = auto_answers.get(question_text, "")
+
+                # Build question display
+                question_lines = []
+                if header:
+                    question_lines.append(f"[bold]{header}[/]: {question_text}")
+                else:
+                    question_lines.append(f"[bold]{question_text}[/]")
+
+                if multi_select:
+                    question_lines.append("[dim](multi-select)[/]")
+
+                question_lines.append("")
+                for i, opt in enumerate(options):
+                    label = opt.get("label", "")
+                    desc = opt.get("description", "")
+                    # Mark auto-selected option
+                    if label == auto_answer:
+                        question_lines.append(f"  [green]→ {i + 1}. {label}[/] - {desc} [green](auto-selected)[/]")
+                    else:
+                        question_lines.append(f"  [dim]{i + 1}. {label} - {desc}[/]")
+
+                self.console.print(
+                    Panel(
+                        "\n".join(question_lines),
+                        title="[yellow]Question[/]",
+                        border_style="yellow",
+                    ),
+                )
+
         elif event.type == "result":
             cost = event.content.get("cost_usd") or 0
             turns = event.content.get("turns_used", 0)

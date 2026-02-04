@@ -33,7 +33,7 @@ from .assessor import WorkspaceAssessor
 class AgentEvent:
     """Event emitted during agent execution."""
     timestamp: datetime
-    type: str  # "thinking" | "text" | "tool_use" | "turn" | "result"
+    type: str  # "thinking" | "text" | "tool_use" | "turn" | "result" | "input_request"
     content: Any
 
 
@@ -137,11 +137,50 @@ class SkillEvaluator:
             tuple of (agent_output, tool_calls, total_cost, turns_used)
         """
         # Auto-approve all tool calls including plan mode tools
+        # For AskUserQuestion, emit event and auto-select first option
         async def auto_approve_tools(
             tool_name: str,
             tool_input: dict[str, Any],
             context: ToolPermissionContext,
         ) -> PermissionResultAllow:
+            if tool_name == "AskUserQuestion":
+                # Extract questions and build auto-answers
+                questions = tool_input.get("questions", [])
+                answers: dict[str, str] = {}
+
+                for q in questions:
+                    question_text = q.get("question", "")
+                    options = q.get("options", [])
+                    multi_select = q.get("multiSelect", False)
+
+                    if options:
+                        # Auto-select first option(s)
+                        if multi_select:
+                            # For multi-select, just pick the first option
+                            answers[question_text] = options[0].get("label", "")
+                        else:
+                            answers[question_text] = options[0].get("label", "")
+                    else:
+                        # No options provided, use empty string
+                        answers[question_text] = ""
+
+                # Emit event for observer visibility
+                if observer:
+                    await observer.on_event(AgentEvent(
+                        timestamp=datetime.now(),
+                        type="input_request",
+                        content={
+                            "questions": questions,
+                            "auto_answers": answers,
+                        },
+                    ))
+
+                # Return with answers populated
+                return PermissionResultAllow(updated_input={
+                    "questions": questions,
+                    "answers": answers,
+                })
+
             return PermissionResultAllow()
 
         options = ClaudeAgentOptions(
@@ -151,7 +190,8 @@ class SkillEvaluator:
             # Load skills from the workspace's .claude/skills/ directory
             setting_sources=["project"],
             # Use standard Claude Code tools plus Skill tool for skill invocation
-            allowed_tools=["Skill", "Bash", "Read", "Write", "Glob", "Grep"],
+            # Include AskUserQuestion to handle clarifying questions via can_use_tool callback
+            allowed_tools=["Skill", "Bash", "Read", "Write", "Glob", "Grep", "AskUserQuestion"],
             # Auto-accept file edits and bash commands in the workspace
             permission_mode="bypassPermissions",
             # Auto-approve all tools (including EnterPlanMode/ExitPlanMode)
