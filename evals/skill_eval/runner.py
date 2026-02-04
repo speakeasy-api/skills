@@ -62,6 +62,7 @@ class EvalRunner:
         skill_names: list[str] | None = None,
         max_concurrent: int = 3,
         observer: ExecutionObserver | None = None,
+        keep_workspaces: bool = False,
     ) -> dict[str, Any]:
         """Run evaluation suite.
 
@@ -73,6 +74,7 @@ class EvalRunner:
             skill_names: Optional list of specific skill names to install. If None and with_skills=True, installs all.
             max_concurrent: Maximum concurrent test runs
             observer: Optional observer for real-time event streaming (forces max_concurrent=1)
+            keep_workspaces: If True, preserve workspace directories after evaluation
         """
         tests = self.load_tests(suite)
 
@@ -117,7 +119,7 @@ class EvalRunner:
             async with sem:
                 if self.verbose:
                     print(f"Running: {test.get('name', 'unnamed')}...")
-                result = await evaluator.evaluate(test, with_skills=with_skills, skill_names=skill_names, observer=observer)
+                result = await evaluator.evaluate(test, with_skills=with_skills, skill_names=skill_names, observer=observer, keep_workspaces=keep_workspaces)
                 result["name"] = test.get("name", "unnamed")
                 return result
 
@@ -140,6 +142,7 @@ class EvalRunner:
         with_skills: bool = True,
         skill_names: list[str] | None = None,
         observer: ExecutionObserver | None = None,
+        keep_workspaces: bool = False,
     ) -> dict[str, Any]:
         """Run a single test by name.
 
@@ -148,6 +151,7 @@ class EvalRunner:
             with_skills: If True, install skills in workspace
             skill_names: Optional list of specific skill names to install
             observer: Optional observer for real-time event streaming
+            keep_workspaces: If True, preserve workspace directory after evaluation
         """
         all_tests = []
         for suite in ["generation", "overlay", "diagnosis", "workflow"]:
@@ -161,7 +165,7 @@ class EvalRunner:
             return {"passed": False, "error": test["error"]}
 
         evaluator = SkillEvaluator(model=self.model)
-        result = await evaluator.evaluate(test, with_skills=with_skills, skill_names=skill_names, observer=observer)
+        result = await evaluator.evaluate(test, with_skills=with_skills, skill_names=skill_names, observer=observer, keep_workspaces=keep_workspaces)
         result["name"] = test_name
         return result
 

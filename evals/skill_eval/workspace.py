@@ -11,11 +11,12 @@ import json
 class Workspace:
     """Isolated workspace for evaluating skills against the Speakeasy CLI."""
 
-    def __init__(self, base_dir: Path | None = None):
+    def __init__(self, base_dir: Path | None = None, keep: bool = False):
         # CRITICAL: Use /tmp not ~/.claude/tmp to avoid speakeasy finding parent workflows
         self.base_dir = base_dir or Path(tempfile.mkdtemp(prefix="skill-eval-", dir="/tmp"))
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self._initial_state: dict[str, str] | None = None
+        self._keep = keep
 
     @property
     def spec_path(self) -> Path:
@@ -130,7 +131,8 @@ class Workspace:
         return self
 
     def __exit__(self, *args) -> None:
-        self.cleanup()
+        if not self._keep:
+            self.cleanup()
 
 
 class WorkspaceManager:

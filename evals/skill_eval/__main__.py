@@ -74,7 +74,6 @@ def run(
         skill-eval run --debug  # Stream agent events
     """
     runner = EvalRunner(model=model, verbose=verbose)
-    # TODO: Add keep_workspaces support to EvalRunner
     reporter = Reporter(console)
     tracker = EvalTracker() if track else None
 
@@ -106,6 +105,7 @@ def run(
             with_skills=with_skills,
             skill_names=skill_names,
             observer=observer,
+            keep_workspaces=keep_workspaces,
         ))
     else:
         with console.status("[bold green]Running evaluations..."):
@@ -116,6 +116,7 @@ def run(
                 max_concurrent=max_concurrent,
                 with_skills=with_skills,
                 skill_names=skill_names,
+                keep_workspaces=keep_workspaces,
             ))
 
     reporter.print_results(results)
@@ -140,7 +141,8 @@ def run(
 @click.option("--skills", help="Comma-separated list of specific skills to install (default: all)")
 @click.option("--no-skills", is_flag=True, help="Run without any skills installed")
 @click.option("--output", "-o", type=click.Path(), help="Output results to JSON file")
-def single(test_name: str, verbose: bool, debug: bool, model: str, skills: str | None, no_skills: bool, output: str | None):
+@click.option("--keep-workspaces", is_flag=True, help="Keep workspace directories for debugging")
+def single(test_name: str, verbose: bool, debug: bool, model: str, skills: str | None, no_skills: bool, output: str | None, keep_workspaces: bool):
     """Run a single test by name.
 
     Examples:
@@ -149,6 +151,7 @@ def single(test_name: str, verbose: bool, debug: bool, model: str, skills: str |
         skill-eval single fix-poor-naming-with-overlay -v
         skill-eval single typescript-sdk-from-clean-spec --debug
         skill-eval single typescript-sdk-from-clean-spec --skills speakeasy-context
+        skill-eval single typescript-sdk-from-clean-spec --keep-workspaces
     """
     runner = EvalRunner(model=model, verbose=verbose)
 
@@ -163,10 +166,10 @@ def single(test_name: str, verbose: bool, debug: bool, model: str, skills: str |
 
     if debug:
         console.print("[dim]Debug mode: streaming agent events...[/dim]\n")
-        result = asyncio.run(runner.run_single(test_name, with_skills=with_skills, skill_names=skill_names, observer=observer))
+        result = asyncio.run(runner.run_single(test_name, with_skills=with_skills, skill_names=skill_names, observer=observer, keep_workspaces=keep_workspaces))
     else:
         with console.status("[bold green]Running evaluation..."):
-            result = asyncio.run(runner.run_single(test_name, with_skills=with_skills, skill_names=skill_names))
+            result = asyncio.run(runner.run_single(test_name, with_skills=with_skills, skill_names=skill_names, keep_workspaces=keep_workspaces))
 
     # Print result details
     if result.get("passed"):
@@ -268,6 +271,9 @@ def single(test_name: str, verbose: bool, debug: bool, model: str, skills: str |
 
     if result.get("cost_usd"):
         console.print(f"\n[dim]Cost: ${result['cost_usd']:.4f}[/dim]")
+
+    if result.get("workspace_dir"):
+        console.print(f"\n[yellow]Workspace preserved: {result['workspace_dir']}[/yellow]")
 
     if output:
         Path(output).write_text(json.dumps(result, indent=2, default=str))
@@ -428,7 +434,8 @@ def trend(count: int):
 @click.option("--debug", "-d", is_flag=True, help="Stream agent events in real-time (tool calls, thinking, text)")
 @click.option("--skills", help="Comma-separated list of specific skills to install (default: all)")
 @click.option("--test", "test_filter", help="Run tests matching this name pattern")
-def compare(suite: str, model: str, debug: bool, skills: str | None, test_filter: str | None):
+@click.option("--keep-workspaces", is_flag=True, help="Keep workspace directories for debugging")
+def compare(suite: str, model: str, debug: bool, skills: str | None, test_filter: str | None, keep_workspaces: bool):
     """Compare results with and without skills loaded.
 
     This helps measure the effectiveness of skills by comparing
@@ -441,6 +448,7 @@ def compare(suite: str, model: str, debug: bool, skills: str | None, test_filter
         skill-eval compare --suite generation --skills speakeasy-context,start-new-sdk-project
         skill-eval compare --suite generation --test typescript
         skill-eval compare --suite generation --test typescript --debug
+        skill-eval compare --suite generation --keep-workspaces
     """
     runner = EvalRunner(model=model)
     reporter = Reporter(console)
@@ -458,17 +466,17 @@ def compare(suite: str, model: str, debug: bool, skills: str | None, test_filter
 
     console.print("[bold]Running WITHOUT skills...[/bold]")
     if debug:
-        results_without = asyncio.run(runner.run(suite=suite, with_skills=False, test_filter=test_filter, observer=observer))
+        results_without = asyncio.run(runner.run(suite=suite, with_skills=False, test_filter=test_filter, observer=observer, keep_workspaces=keep_workspaces))
     else:
         with console.status("[yellow]Testing base model..."):
-            results_without = asyncio.run(runner.run(suite=suite, with_skills=False, test_filter=test_filter))
+            results_without = asyncio.run(runner.run(suite=suite, with_skills=False, test_filter=test_filter, keep_workspaces=keep_workspaces))
 
     console.print("\n[bold]Running WITH skills...[/bold]")
     if debug:
-        results_with = asyncio.run(runner.run(suite=suite, with_skills=True, skill_names=skill_names, test_filter=test_filter, observer=observer))
+        results_with = asyncio.run(runner.run(suite=suite, with_skills=True, skill_names=skill_names, test_filter=test_filter, observer=observer, keep_workspaces=keep_workspaces))
     else:
         with console.status("[green]Testing with skills..."):
-            results_with = asyncio.run(runner.run(suite=suite, with_skills=True, skill_names=skill_names, test_filter=test_filter))
+            results_with = asyncio.run(runner.run(suite=suite, with_skills=True, skill_names=skill_names, test_filter=test_filter, keep_workspaces=keep_workspaces))
 
     reporter.print_comparison(results_without, results_with)
 

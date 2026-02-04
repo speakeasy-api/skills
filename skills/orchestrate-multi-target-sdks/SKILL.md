@@ -152,6 +152,24 @@ shared/
 | Config not found | Ensure `.speakeasy/gen.yaml` exists in output dir |
 | Circular dependencies | Use workspace protocols in package.json |
 
+## After Making Changes
+
+After modifying workflow.yaml or per-target gen.yaml, **prompt the user** to regenerate the SDK(s):
+
+> **Configuration complete.** Would you like to regenerate the SDK(s) now with `speakeasy run`?
+
+If the user confirms, run:
+
+```bash
+# Generate all targets
+speakeasy run --output console
+
+# Or generate a specific target
+speakeasy run -t <target-name> --output console
+```
+
+Changes to workflow.yaml and gen.yaml only take effect after regeneration.
+
 ## Related Skills
 
 - `start-new-sdk-project` - Initial SDK setup

@@ -346,3 +346,17 @@ With `envVarPrefix: MYAPI` in gen.yaml, generates env var support for `MYAPI_KEY
 | No changes visible | Wrong target path | Use `$.paths['/exact-path']` with exact casing |
 | Errors persist after overlay | Issue not overlay-appropriate | Check if the issue requires a source spec fix instead |
 | Overlay order conflict | Later overlay overrides earlier | Reorder overlays in `workflow.yaml` or merge into one file |
+
+## After Making Changes
+
+After creating or modifying overlay files and adding them to workflow.yaml, **prompt the user** to regenerate the SDK:
+
+> **Overlay configuration complete.** Would you like to regenerate the SDK now with `speakeasy run`?
+
+If the user confirms, run:
+
+```bash
+speakeasy run --output console
+```
+
+Overlay changes only take effect in the SDK after regeneration.

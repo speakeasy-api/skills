@@ -97,6 +97,7 @@ class SkillEvaluator:
         with_skills: bool = True,
         skill_names: list[str] | None = None,
         observer: ExecutionObserver | None = None,
+        keep_workspaces: bool = False,
     ) -> dict[str, Any]:
         """Evaluate a single test case using a real workspace.
 
@@ -105,6 +106,7 @@ class SkillEvaluator:
             with_skills: If True, install skills in workspace. If False, run without skills.
             skill_names: Optional list of specific skill names to install. If None and with_skills=True, installs all.
             observer: Optional observer for real-time event streaming
+            keep_workspaces: If True, preserve workspace directory after evaluation
         """
         test_type = test.get("type", "generation")
 
@@ -116,7 +118,7 @@ class SkillEvaluator:
         }
 
         handler = handlers.get(test_type, self._eval_generation)
-        return await handler(test, with_skills=with_skills, skill_names=skill_names, observer=observer)
+        return await handler(test, with_skills=with_skills, skill_names=skill_names, observer=observer, keep_workspaces=keep_workspaces)
 
     async def _run_agent(
         self,
@@ -315,6 +317,7 @@ class SkillEvaluator:
         with_skills: bool = True,
         skill_names: list[str] | None = None,
         observer: ExecutionObserver | None = None,
+        keep_workspaces: bool = False,
     ) -> dict[str, Any]:
         """Evaluate SDK generation with skill-guided agent."""
         skill_name = test["skill"]  # The skill we expect to be used
@@ -326,7 +329,7 @@ class SkillEvaluator:
         if not spec_content:
             return {"skill": skill_name, "type": "generation", "passed": False, "error": "No spec provided"}
 
-        with Workspace() as workspace:
+        with Workspace(keep=keep_workspaces) as workspace:
             workspace.setup(spec_content)
 
             # Setup skills in workspace for SDK discovery (only if with_skills=True)
@@ -455,7 +458,7 @@ class SkillEvaluator:
                         "name": f"multi_{check['name']}",
                     })
 
-            return {
+            result = {
                 "skill": skill_name,
                 "type": "generation",
                 "target": target,
@@ -474,6 +477,9 @@ class SkillEvaluator:
                 "turns_used": turns_used,
                 "max_turns": max_turns,
             }
+            if keep_workspaces:
+                result["workspace_dir"] = str(workspace.base_dir)
+            return result
 
     async def _eval_overlay(
         self,
@@ -481,6 +487,7 @@ class SkillEvaluator:
         with_skills: bool = True,
         skill_names: list[str] | None = None,
         observer: ExecutionObserver | None = None,
+        keep_workspaces: bool = False,
     ) -> dict[str, Any]:
         """Evaluate overlay creation with skill-guided agent."""
         skill_name = test["skill"]
@@ -492,7 +499,7 @@ class SkillEvaluator:
         if not spec_content:
             return {"skill": skill_name, "type": "overlay", "passed": False, "error": "No spec provided"}
 
-        with Workspace() as workspace:
+        with Workspace(keep=keep_workspaces) as workspace:
             workspace.setup(spec_content)
 
             for rel_path, content in test.get("fixture_files", {}).items():
@@ -664,7 +671,7 @@ class SkillEvaluator:
                 if agent_tested_api or api_config.get("always_run", False):
                     api_validation_result = assessor.assess_api_types(api_config)
 
-            return {
+            result = {
                 "skill": skill_name,
                 "type": "overlay",
                 "passed": all_passed,
@@ -683,6 +690,9 @@ class SkillEvaluator:
                 "turns_used": turns_used,
                 "max_turns": max_turns,
             }
+            if keep_workspaces:
+                result["workspace_dir"] = str(workspace.base_dir)
+            return result
 
     async def _eval_diagnosis(
         self,
@@ -690,6 +700,7 @@ class SkillEvaluator:
         with_skills: bool = True,
         skill_names: list[str] | None = None,
         observer: ExecutionObserver | None = None,
+        keep_workspaces: bool = False,
     ) -> dict[str, Any]:
         """Evaluate diagnosis of generation issues."""
         skill_name = test["skill"]
@@ -701,7 +712,7 @@ class SkillEvaluator:
         if not spec_content:
             return {"skill": skill_name, "type": "diagnosis", "passed": False, "error": "No spec provided"}
 
-        with Workspace() as workspace:
+        with Workspace(keep=keep_workspaces) as workspace:
             workspace.setup(spec_content)
             skills_installed = self._setup_skills_in_workspace(workspace, skill_names) if with_skills else 0
 
@@ -724,7 +735,7 @@ class SkillEvaluator:
 
             passed = all(c["identified"] for c in checks) if checks else len(agent_output) > 100
 
-            return {
+            result = {
                 "skill": skill_name,
                 "type": "diagnosis",
                 "passed": passed,
@@ -739,6 +750,9 @@ class SkillEvaluator:
                 "turns_used": turns_used,
                 "max_turns": max_turns,
             }
+            if keep_workspaces:
+                result["workspace_dir"] = str(workspace.base_dir)
+            return result
 
     async def _eval_workflow(
         self,
@@ -746,6 +760,7 @@ class SkillEvaluator:
         with_skills: bool = True,
         skill_names: list[str] | None = None,
         observer: ExecutionObserver | None = None,
+        keep_workspaces: bool = False,
     ) -> dict[str, Any]:
         """Evaluate a complete workflow (multi-step task)."""
         skill_name = test["skill"]
@@ -757,7 +772,7 @@ class SkillEvaluator:
         if not spec_content:
             return {"skill": skill_name, "type": "workflow", "passed": False, "error": "No spec provided"}
 
-        with Workspace() as workspace:
+        with Workspace(keep=keep_workspaces) as workspace:
             workspace.setup(spec_content)
             skills_installed = self._setup_skills_in_workspace(workspace, skill_names) if with_skills else 0
 
@@ -800,7 +815,7 @@ class SkillEvaluator:
 
             all_passed = all(s["passed"] for s in step_results) if step_results else True
 
-            return {
+            result = {
                 "skill": skill_name,
                 "type": "workflow",
                 "passed": all_passed,
@@ -815,6 +830,9 @@ class SkillEvaluator:
                 "turns_used": turns_used,
                 "max_turns": max_turns,
             }
+            if keep_workspaces:
+                result["workspace_dir"] = str(workspace.base_dir)
+            return result
 
     def _setup_speakeasy_project(self, workspace: "Workspace", test: dict[str, Any]) -> None:
         """Create .speakeasy/workflow.yaml and gen.yaml if missing."""

@@ -377,6 +377,20 @@ while (page) {
 | All | Server ID not recognized | Add `x-speakeasy-server-id` to each server entry |
 | All | Pagination `next()` undefined | Add `x-speakeasy-pagination` to the list operation |
 
+## After Making Changes
+
+After modifying gen.yaml configuration, **prompt the user** to regenerate the SDK:
+
+> **Configuration complete.** Would you like to regenerate the SDK now with `speakeasy run`?
+
+If the user confirms, run:
+
+```bash
+speakeasy run --output console
+```
+
+Changes to gen.yaml only take effect after regeneration.
+
 ## Related Skills
 
 - `start-new-sdk-project` - Initial SDK generation
