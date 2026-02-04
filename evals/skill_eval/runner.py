@@ -6,7 +6,7 @@ from typing import Any
 
 import yaml
 
-from .evaluator import SkillEvaluator
+from .evaluator import ExecutionObserver, SkillEvaluator
 
 
 class EvalRunner:
@@ -128,8 +128,21 @@ class EvalRunner:
         results["pass_rate"] = results["passed"] / results["total"] if results["total"] > 0 else 0
         return results
 
-    async def run_single(self, test_name: str, with_skills: bool = True, skill_names: list[str] | None = None) -> dict[str, Any]:
-        """Run a single test by name."""
+    async def run_single(
+        self,
+        test_name: str,
+        with_skills: bool = True,
+        skill_names: list[str] | None = None,
+        observer: ExecutionObserver | None = None,
+    ) -> dict[str, Any]:
+        """Run a single test by name.
+
+        Args:
+            test_name: Name of the test to run
+            with_skills: If True, install skills in workspace
+            skill_names: Optional list of specific skill names to install
+            observer: Optional observer for real-time event streaming
+        """
         all_tests = []
         for suite in ["generation", "overlay", "diagnosis", "workflow"]:
             all_tests.extend(self.load_tests(suite))
@@ -142,7 +155,7 @@ class EvalRunner:
             return {"passed": False, "error": test["error"]}
 
         evaluator = SkillEvaluator(model=self.model)
-        result = await evaluator.evaluate(test, with_skills=with_skills, skill_names=skill_names)
+        result = await evaluator.evaluate(test, with_skills=with_skills, skill_names=skill_names, observer=observer)
         result["name"] = test_name
         return result
 

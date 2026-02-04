@@ -8,8 +8,10 @@ matching a real Claude Code environment where all skills are available.
 """
 
 import shutil
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from claude_agent_sdk import (
     ClaudeSDKClient,
@@ -17,11 +19,28 @@ from claude_agent_sdk import (
     AssistantMessage,
     ResultMessage,
     TextBlock,
+    ThinkingBlock,
     ToolUseBlock,
 )
 
 from .workspace import Workspace
 from .assessor import WorkspaceAssessor
+
+
+@dataclass
+class AgentEvent:
+    """Event emitted during agent execution."""
+    timestamp: datetime
+    type: str  # "thinking" | "text" | "tool_use" | "turn" | "result"
+    content: Any
+
+
+class ExecutionObserver(Protocol):
+    """Protocol for observing agent execution events."""
+
+    async def on_event(self, event: AgentEvent) -> None:
+        """Called when an event occurs during agent execution."""
+        ...
 
 
 class SkillEvaluator:
@@ -70,13 +89,20 @@ class SkillEvaluator:
 
         return skills_installed
 
-    async def evaluate(self, test: dict[str, Any], with_skills: bool = True, skill_names: list[str] | None = None) -> dict[str, Any]:
+    async def evaluate(
+        self,
+        test: dict[str, Any],
+        with_skills: bool = True,
+        skill_names: list[str] | None = None,
+        observer: ExecutionObserver | None = None,
+    ) -> dict[str, Any]:
         """Evaluate a single test case using a real workspace.
 
         Args:
             test: Test case definition
             with_skills: If True, install skills in workspace. If False, run without skills.
             skill_names: Optional list of specific skill names to install. If None and with_skills=True, installs all.
+            observer: Optional observer for real-time event streaming
         """
         test_type = test.get("type", "generation")
 
@@ -88,15 +114,22 @@ class SkillEvaluator:
         }
 
         handler = handlers.get(test_type, self._eval_generation)
-        return await handler(test, with_skills=with_skills, skill_names=skill_names)
+        return await handler(test, with_skills=with_skills, skill_names=skill_names, observer=observer)
 
     async def _run_agent(
         self,
         workspace: Workspace,
         task: str,
         max_turns: int = 10,
+        observer: ExecutionObserver | None = None,
     ) -> tuple[str, list[dict], float | None, int]:
         """Run agent with all skills loaded from workspace .claude/skills/ directory.
+
+        Args:
+            workspace: The workspace to run the agent in
+            task: The task prompt to send to the agent
+            max_turns: Maximum number of turns before stopping
+            observer: Optional observer for real-time event streaming
 
         Returns:
             tuple of (agent_output, tool_calls, total_cost, turns_used)
@@ -124,17 +157,49 @@ class SkillEvaluator:
             async for msg in client.receive_response():
                 if isinstance(msg, AssistantMessage):
                     turns_used += 1
+                    if observer:
+                        await observer.on_event(AgentEvent(
+                            timestamp=datetime.now(),
+                            type="turn",
+                            content={"turn": turns_used, "max_turns": max_turns},
+                        ))
                     for block in msg.content:
-                        if isinstance(block, TextBlock):
+                        if isinstance(block, ThinkingBlock):
+                            if observer:
+                                await observer.on_event(AgentEvent(
+                                    timestamp=datetime.now(),
+                                    type="thinking",
+                                    content=block.thinking,
+                                ))
+                        elif isinstance(block, TextBlock):
                             agent_output += block.text
+                            if observer:
+                                await observer.on_event(AgentEvent(
+                                    timestamp=datetime.now(),
+                                    type="text",
+                                    content=block.text,
+                                ))
                         elif isinstance(block, ToolUseBlock):
-                            tool_calls.append({
+                            tool_call = {
                                 "name": block.name,
                                 "input": self._summarize_tool_input(block.name, block.input),
-                            })
+                            }
+                            tool_calls.append(tool_call)
+                            if observer:
+                                await observer.on_event(AgentEvent(
+                                    timestamp=datetime.now(),
+                                    type="tool_use",
+                                    content=tool_call,
+                                ))
                 elif isinstance(msg, ResultMessage):
                     if msg.total_cost_usd:
                         total_cost = msg.total_cost_usd
+                    if observer:
+                        await observer.on_event(AgentEvent(
+                            timestamp=datetime.now(),
+                            type="result",
+                            content={"cost_usd": total_cost, "turns_used": turns_used},
+                        ))
 
         return agent_output, tool_calls, total_cost, turns_used
 
@@ -192,7 +257,13 @@ class SkillEvaluator:
 
         return None
 
-    async def _eval_generation(self, test: dict[str, Any], with_skills: bool = True, skill_names: list[str] | None = None) -> dict[str, Any]:
+    async def _eval_generation(
+        self,
+        test: dict[str, Any],
+        with_skills: bool = True,
+        skill_names: list[str] | None = None,
+        observer: ExecutionObserver | None = None,
+    ) -> dict[str, Any]:
         """Evaluate SDK generation with skill-guided agent."""
         skill_name = test["skill"]  # The skill we expect to be used
         spec_content = test.get("spec")
@@ -211,7 +282,7 @@ class SkillEvaluator:
 
             try:
                 agent_output, tool_calls, cost, turns_used = await self._run_agent(
-                    workspace, task, max_turns=max_turns
+                    workspace, task, max_turns=max_turns, observer=observer
                 )
             except Exception as e:
                 return {"skill": skill_name, "type": "generation", "passed": False, "error": str(e)}
@@ -352,7 +423,13 @@ class SkillEvaluator:
                 "max_turns": max_turns,
             }
 
-    async def _eval_overlay(self, test: dict[str, Any], with_skills: bool = True, skill_names: list[str] | None = None) -> dict[str, Any]:
+    async def _eval_overlay(
+        self,
+        test: dict[str, Any],
+        with_skills: bool = True,
+        skill_names: list[str] | None = None,
+        observer: ExecutionObserver | None = None,
+    ) -> dict[str, Any]:
         """Evaluate overlay creation with skill-guided agent."""
         skill_name = test["skill"]
         spec_content = test.get("spec")
@@ -369,7 +446,7 @@ class SkillEvaluator:
 
             try:
                 agent_output, tool_calls, cost, turns_used = await self._run_agent(
-                    workspace, task, max_turns=max_turns
+                    workspace, task, max_turns=max_turns, observer=observer
                 )
             except Exception as e:
                 return {"skill": skill_name, "type": "overlay", "passed": False, "error": str(e)}
@@ -481,7 +558,13 @@ class SkillEvaluator:
                 "max_turns": max_turns,
             }
 
-    async def _eval_diagnosis(self, test: dict[str, Any], with_skills: bool = True, skill_names: list[str] | None = None) -> dict[str, Any]:
+    async def _eval_diagnosis(
+        self,
+        test: dict[str, Any],
+        with_skills: bool = True,
+        skill_names: list[str] | None = None,
+        observer: ExecutionObserver | None = None,
+    ) -> dict[str, Any]:
         """Evaluate diagnosis of generation issues."""
         skill_name = test["skill"]
         spec_content = test.get("spec")
@@ -498,7 +581,7 @@ class SkillEvaluator:
 
             try:
                 agent_output, tool_calls, cost, turns_used = await self._run_agent(
-                    workspace, task, max_turns=max_turns
+                    workspace, task, max_turns=max_turns, observer=observer
                 )
             except Exception as e:
                 return {"skill": skill_name, "type": "diagnosis", "passed": False, "error": str(e)}
@@ -531,7 +614,13 @@ class SkillEvaluator:
                 "max_turns": max_turns,
             }
 
-    async def _eval_workflow(self, test: dict[str, Any], with_skills: bool = True, skill_names: list[str] | None = None) -> dict[str, Any]:
+    async def _eval_workflow(
+        self,
+        test: dict[str, Any],
+        with_skills: bool = True,
+        skill_names: list[str] | None = None,
+        observer: ExecutionObserver | None = None,
+    ) -> dict[str, Any]:
         """Evaluate a complete workflow (multi-step task)."""
         skill_name = test["skill"]
         spec_content = test.get("spec")
@@ -548,7 +637,7 @@ class SkillEvaluator:
 
             try:
                 agent_output, tool_calls, cost, turns_used = await self._run_agent(
-                    workspace, task, max_turns=max_turns
+                    workspace, task, max_turns=max_turns, observer=observer
                 )
             except Exception as e:
                 return {"skill": skill_name, "type": "workflow", "passed": False, "error": str(e)}

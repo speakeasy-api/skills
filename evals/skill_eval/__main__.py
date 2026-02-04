@@ -12,6 +12,7 @@ from rich.panel import Panel
 from .runner import EvalRunner
 from .reporter import Reporter
 from .tracker import EvalTracker
+from .observer import RichConsoleObserver
 
 console = Console()
 
@@ -114,22 +115,31 @@ def run(
 @cli.command()
 @click.argument("test_name")
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
+@click.option("--debug", "-d", is_flag=True, help="Stream agent events in real-time (tool calls, thinking, text)")
 @click.option("--model", default="claude-sonnet-4-20250514", help="Model to use for agent")
 @click.option("--output", "-o", type=click.Path(), help="Output results to JSON file")
-def single(test_name: str, verbose: bool, model: str, output: str | None):
+def single(test_name: str, verbose: bool, debug: bool, model: str, output: str | None):
     """Run a single test by name.
 
     Examples:
 
         skill-eval single typescript-sdk-from-clean-spec
         skill-eval single fix-poor-naming-with-overlay -v
+        skill-eval single typescript-sdk-from-clean-spec --debug
     """
     runner = EvalRunner(model=model, verbose=verbose)
 
     console.print(f"[bold]Running test: {test_name}[/bold]\n")
 
-    with console.status("[bold green]Running evaluation..."):
-        result = asyncio.run(runner.run_single(test_name))
+    # Create observer for debug mode
+    observer = RichConsoleObserver(console) if debug else None
+
+    if debug:
+        console.print("[dim]Debug mode: streaming agent events...[/dim]\n")
+        result = asyncio.run(runner.run_single(test_name, observer=observer))
+    else:
+        with console.status("[bold green]Running evaluation..."):
+            result = asyncio.run(runner.run_single(test_name))
 
     # Print result details
     if result.get("passed"):
