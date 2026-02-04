@@ -3,6 +3,7 @@
 import asyncio
 import json
 from pathlib import Path
+from typing import Any
 
 import click
 from rich.console import Console
@@ -15,6 +16,40 @@ from .tracker import EvalTracker
 from .observer import RichConsoleObserver
 
 console = Console()
+
+
+def print_test_summary(result: dict[str, Any]) -> None:
+    """Print a concise summary after each test completes."""
+    name = result.get("name", "unknown")
+    passed = result.get("passed", False)
+    status = "[bold green]PASSED[/bold green]" if passed else "[bold red]FAILED[/bold red]"
+
+    # Build summary line
+    parts = [f"{status} {name}"]
+
+    # Add score if available (for overlay tests)
+    if result.get("overlays"):
+        for overlay in result["overlays"]:
+            for check in overlay.get("checks", []):
+                if check.get("name") == "scoring_summary":
+                    score = check.get("score", 0)
+                    max_score = check.get("max_score", 0)
+                    pct = (score / max_score * 100) if max_score > 0 else 0
+                    parts.append(f"[dim]({score}/{max_score} = {pct:.0f}%)[/dim]")
+                    break
+
+    # Add cost and turns if available
+    if result.get("cost_usd"):
+        parts.append(f"[dim]${result['cost_usd']:.2f}[/dim]")
+    if result.get("turns_used"):
+        parts.append(f"[dim]{result['turns_used']} turns[/dim]")
+
+    # Add error if failed
+    if not passed and result.get("error"):
+        parts.append(f"[red]- {result['error'][:50]}...[/red]" if len(result.get("error", "")) > 50 else f"[red]- {result.get('error')}[/red]")
+
+    console.print(" | ".join(parts))
+    console.print()  # Blank line between tests
 
 
 @click.group()
@@ -95,6 +130,10 @@ def run(
         title="Skill Eval"
     ))
 
+    # Use callback for immediate summaries when running sequentially
+    sequential = debug or max_concurrent == 1
+    on_complete = print_test_summary if sequential else None
+
     if debug:
         console.print("[dim]Debug mode: streaming agent events...[/dim]\n")
         results = asyncio.run(runner.run(
@@ -106,9 +145,11 @@ def run(
             skill_names=skill_names,
             observer=observer,
             keep_workspaces=keep_workspaces,
+            on_test_complete=on_complete,
         ))
     else:
-        with console.status("[bold green]Running evaluations..."):
+        if sequential:
+            # No status spinner when printing per-test summaries
             results = asyncio.run(runner.run(
                 suite=suite,
                 skill_filter=skill,
@@ -117,7 +158,18 @@ def run(
                 with_skills=with_skills,
                 skill_names=skill_names,
                 keep_workspaces=keep_workspaces,
+                on_test_complete=on_complete,
             ))
+        else:
+            with console.status("[bold green]Running evaluations..."):
+                results = asyncio.run(runner.run(
+                    suite=suite,
+                    skill_filter=skill,
+                    test_filter=test_filter,
+                    max_concurrent=max_concurrent,
+                    with_skills=with_skills,
+                    skill_names=skill_names,
+                ))
 
     reporter.print_results(results)
 

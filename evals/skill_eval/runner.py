@@ -2,12 +2,15 @@
 
 import asyncio
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import yaml
 
 from .evaluator import ExecutionObserver, SkillEvaluator
 from .fixtures import FixtureLoader
+
+# Type for callback after each test completes
+OnTestComplete = Callable[[dict[str, Any]], None]
 
 
 class EvalRunner:
@@ -63,6 +66,7 @@ class EvalRunner:
         max_concurrent: int = 3,
         observer: ExecutionObserver | None = None,
         keep_workspaces: bool = False,
+        on_test_complete: OnTestComplete | None = None,
     ) -> dict[str, Any]:
         """Run evaluation suite.
 
@@ -75,6 +79,7 @@ class EvalRunner:
             max_concurrent: Maximum concurrent test runs
             observer: Optional observer for real-time event streaming (forces max_concurrent=1)
             keep_workspaces: If True, preserve workspace directories after evaluation
+            on_test_complete: Optional callback called after each test completes with the result dict
         """
         tests = self.load_tests(suite)
 
@@ -121,6 +126,9 @@ class EvalRunner:
                     print(f"Running: {test.get('name', 'unnamed')}...")
                 result = await evaluator.evaluate(test, with_skills=with_skills, skill_names=skill_names, observer=observer, keep_workspaces=keep_workspaces)
                 result["name"] = test.get("name", "unnamed")
+                # Call callback immediately after test completes (useful for sequential runs)
+                if on_test_complete:
+                    on_test_complete(result)
                 return result
 
         if valid_tests:

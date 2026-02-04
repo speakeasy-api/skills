@@ -92,7 +92,7 @@ tests:
       - x-speakeasy-deprecation-message
 
   - name: openrouter-issue-1-type-improvements
-    skill: manage-openapi-overlays
+    # skill: not specified - don't assert on which skill is invoked
     type: overlay
     source:
       repository: https://github.com/OpenRouterTeam/go-sdk

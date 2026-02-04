@@ -490,7 +490,7 @@ class SkillEvaluator:
         keep_workspaces: bool = False,
     ) -> dict[str, Any]:
         """Evaluate overlay creation with skill-guided agent."""
-        skill_name = test["skill"]
+        skill_name = test.get("skill")  # Optional - don't require skill assertion
         spec_content = test.get("spec")
         task = test.get("task", "Create an overlay to improve the SDK naming for the OpenAPI spec at openapi.yaml")
         expected_extensions = test.get("expected_extensions", [])
@@ -516,7 +516,8 @@ class SkillEvaluator:
                 return {"skill": skill_name, "type": "overlay", "passed": False, "error": str(e)}
 
             skills_invoked = self._extract_skill_invocations(tool_calls)
-            expected_skill_invoked = skill_name in skills_invoked
+            # Only check skill invocation if a specific skill is expected
+            expected_skill_invoked = skill_name in skills_invoked if skill_name else None
             speakeasy_commands = self._extract_speakeasy_commands(tool_calls)
 
             # Find and assess overlay files
@@ -532,18 +533,20 @@ class SkillEvaluator:
                         overlay_files.append(f)
 
             if not overlay_files:
-                return {
+                result = {
                     "skill": skill_name,
                     "type": "overlay",
                     "passed": False,
                     "error": "No overlay file created",
                     "skills_installed": skills_installed,
                     "skills_invoked": skills_invoked,
-                    "expected_skill_invoked": expected_skill_invoked,
                     "tool_calls": tool_calls,
                     "speakeasy_commands": speakeasy_commands,
                     "cost_usd": cost,
                 }
+                if expected_skill_invoked is not None:
+                    result["expected_skill_invoked"] = expected_skill_invoked
+                return result
 
             assessor = WorkspaceAssessor(workspace.base_dir)
             all_passed = True
@@ -683,7 +686,6 @@ class SkillEvaluator:
                 } if api_config else None,
                 "skills_installed": skills_installed,
                 "skills_invoked": skills_invoked,
-                "expected_skill_invoked": expected_skill_invoked,
                 "tool_calls": tool_calls,
                 "speakeasy_commands": speakeasy_commands,
                 "cost_usd": cost,
@@ -692,6 +694,8 @@ class SkillEvaluator:
             }
             if keep_workspaces:
                 result["workspace_dir"] = str(workspace.base_dir)
+            if expected_skill_invoked is not None:
+                result["expected_skill_invoked"] = expected_skill_invoked
             return result
 
     async def _eval_diagnosis(
