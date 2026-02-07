@@ -90,3 +90,94 @@ tests:
     expected_extensions:
       - deprecated
       - x-speakeasy-deprecation-message
+
+  - name: openrouter-issue-1-type-improvements
+    # skill: not specified - don't assert on which skill is invoked
+    type: overlay
+    source:
+      repository: https://github.com/OpenRouterTeam/go-sdk
+      commit: c2c3c701312ed9c362b305af03718de51c03758d
+      spec_path: .speakeasy/in.openapi.yaml
+      issue:
+        repo: OpenRouterTeam/go-sdk
+        number: 1
+    fixture_dir: fixtures/openrouter-go-sdk-issue-1
+    max_turns: 30
+    target: go
+    task: |
+      Solve GitHub issue #1 for the OpenRouter Go SDK.
+      The issue is at issue.md
+
+    expected_extensions:
+      - "type: integer"
+      - "format: date-time"
+
+    scoring:
+      required:
+        - name: index_fixed
+          description: ChatResponseChoice.index changed to integer
+          target_contains: "ChatResponseChoice"
+          has: "type: integer"
+          points: 20
+        - name: created_fixed
+          description: ChatResponse.created has date-time format
+          target_contains: "ChatResponse"
+          has: "format: date-time"
+          points: 20
+        - name: completion_tokens_fixed
+          description: completion_tokens changed to integer
+          target_contains: "completion_tokens"
+          has: "type: integer"
+          points: 15
+        - name: prompt_tokens_fixed
+          description: prompt_tokens changed to integer
+          target_contains: "prompt_tokens"
+          has: "type: integer"
+          points: 15
+        - name: total_tokens_fixed
+          description: total_tokens changed to integer
+          target_contains: "total_tokens"
+          has: "type: integer"
+          points: 15
+
+      bonus:
+        - name: streaming_created_fixed
+          description: Also fixed ChatStreamingResponseChunk.created
+          target_contains: "ChatStreamingResponseChunk"
+          has: "format: date-time"
+          points: 5
+        - name: nested_reasoning_tokens
+          description: Fixed reasoning_tokens in details
+          target_contains: "reasoning_tokens"
+          has: "type: integer"
+          points: 5
+        - name: nested_cached_tokens
+          description: Fixed cached_tokens in details
+          target_contains: "cached_tokens"
+          has: "type: integer"
+          points: 5
+
+      negative:
+        - name: finish_reason_unchanged
+          description: Did NOT modify finish_reason (constraint respected)
+          target_not_contains: "finish_reason"
+        - name: schema6_unchanged
+          description: Did NOT modify __schema6 (constraint respected)
+          target_not_contains: "__schema6"
+
+    api_validation:
+      enabled: true
+      always_run: false
+      env_var: OPENROUTER_API_KEY
+      endpoint: https://openrouter.ai/api/v1/chat/completions
+      request:
+        model: "openai/gpt-4o-mini"
+        messages:
+          - role: user
+            content: "Say hello"
+      expected_types:
+        "choices[0].index": integer
+        "created": integer
+        "usage.completion_tokens": integer
+        "usage.prompt_tokens": integer
+        "usage.total_tokens": integer

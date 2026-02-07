@@ -1,147 +1,242 @@
 ---
 name: orchestrate-multi-target-sdks
 description: >-
-  Use when generating multiple SDK variants from one repository. Covers workflow.yaml
-  multi-target configuration, per-target gen.yaml, monorepo structure, versioning strategies.
-  Triggers on "multi-target SDK", "multiple SDK variants", "Azure SDK variant",
-  "GCP SDK", "cloud-specific SDK", "SDK monorepo".
+  Use when generating SDKs for multiple languages from a single OpenAPI spec, or
+  multiple SDK variants from different sources. Covers workflow.yaml multi-target
+  configuration, per-language gen.yaml, monorepo structure.
+  Triggers on "multiple SDKs", "multi-language SDK", "SDK for each language",
+  "multi-target SDK", "SDK monorepo", "generate SDKs for".
 license: Apache-2.0
 ---
 
 # Orchestrate Multi-Target SDKs
 
-Generate multiple SDK variants (e.g., core, Azure, GCP) from different OpenAPI sources in a single repository.
+Generate SDKs for multiple languages or variants from a single repository using CLI commands.
 
 ## When to Use
 
-- Generating cloud-specific SDK variants (Azure, GCP, AWS)
-- Creating regional API variants (US, EU, APAC)
-- Building partner-branded/white-label SDKs
-- Managing multiple OpenAPI sources in one repo
-- User says: "multi-target SDK", "Azure variant", "SDK monorepo"
+- Generating SDKs for multiple languages from the same API spec
+- Creating SDK variants (Azure, GCP, regional) from different specs
+- Setting up an SDK monorepo
+- User says: "generate SDKs for multiple languages", "SDK for each language", "multi-target"
 
-## Quick Start
+## Quick Start: Multiple Languages
 
-Configure multiple sources and targets in `workflow.yaml`:
+**Always use CLI commands.** Never create `.speakeasy` directories manually.
 
-```yaml
-workflowVersion: 1.0.0
-speakeasyVersion: latest
+```bash
+# Step 1: Initialize first target (creates .speakeasy/workflow.yaml)
+speakeasy quickstart --skip-interactive --output console \
+  -s openapi.yaml -t typescript -n "MySDK" -p "my-sdk"
 
-sources:
-  main-source:
-    inputs:
-      - location: registry.speakeasyapi.dev/org/repo/main-openapi:main
-  azure-source:
-    inputs:
-      - location: registry.speakeasyapi.dev/org/repo/azure-openapi:main
+# Step 2: Add more language targets using configure
+speakeasy configure targets \
+  --target-type python \
+  --source my-source \
+  --output ./sdks/python
 
-targets:
-  main-sdk:
-    target: typescript
-    source: main-source
-    output: ./
-  azure-sdk:
-    target: typescript
-    source: azure-source
-    output: ./packages/azure
+speakeasy configure targets \
+  --target-type go \
+  --source my-source \
+  --output ./sdks/go
+
+# Step 3: Generate all SDKs
+speakeasy run --output console
+```
+
+## CLI Reference
+
+### `speakeasy configure sources`
+
+Add a new OpenAPI source to an existing workflow:
+
+```bash
+speakeasy configure sources \
+  --location ./openapi.yaml \
+  --source-name my-api
+
+# With authentication header
+speakeasy configure sources \
+  --location https://api.example.com/openapi.yaml \
+  --source-name my-api \
+  --auth-header "Authorization"
+```
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--location` | `-l` | OpenAPI document location (file or URL) |
+| `--source-name` | `-s` | Name for the source |
+| `--auth-header` | | Authentication header name (optional) |
+| `--output` | `-o` | Output path for compiled source (optional) |
+| `--non-interactive` | | Force non-interactive mode |
+
+### `speakeasy configure targets`
+
+Add a new SDK target to an existing workflow:
+
+```bash
+speakeasy configure targets \
+  --target-type typescript \
+  --source my-api \
+  --output ./sdks/typescript
+
+# With all options
+speakeasy configure targets \
+  --target-type go \
+  --source my-api \
+  --target-name my-go-sdk \
+  --sdk-class-name MyAPI \
+  --package-name github.com/myorg/myapi-go \
+  --output ./sdks/go
+```
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--target-type` | `-t` | Language: typescript, python, go, java, csharp, php, ruby, terraform |
+| `--source` | `-s` | Name of source to generate from |
+| `--target-name` | | Name for the target (defaults to target-type) |
+| `--sdk-class-name` | | SDK class name (optional) |
+| `--package-name` | | Package name (optional) |
+| `--base-server-url` | | Base server URL (optional) |
+| `--output` | `-o` | Output directory (optional) |
+| `--non-interactive` | | Force non-interactive mode |
+
+## Example: Multi-Language SDKs
+
+Single OpenAPI spec → TypeScript, Python, Go SDKs:
+
+```bash
+# Initialize with first target
+speakeasy quickstart --skip-interactive --output console \
+  -s ./openapi.yaml -t typescript -n "MySDK" -p "my-sdk" -o ./sdks/typescript
+
+# Add Python
+speakeasy configure targets \
+  --target-type python \
+  --source my-source \
+  --sdk-class-name MySDK \
+  --package-name my-sdk \
+  --output ./sdks/python
+
+# Add Go
+speakeasy configure targets \
+  --target-type go \
+  --source my-source \
+  --sdk-class-name MySDK \
+  --package-name github.com/myorg/my-sdk-go \
+  --output ./sdks/go
+
+# Generate all
+speakeasy run --output console
+```
+
+## Example: SDK Variants (Multiple Sources)
+
+Different OpenAPI specs → variant SDKs:
+
+```bash
+# Initialize with main API
+speakeasy quickstart --skip-interactive --output console \
+  -s ./openapi.yaml -t typescript -n "MySDK" -p "my-sdk"
+
+# Add Azure variant source
+speakeasy configure sources \
+  --location ./openapi-azure.yaml \
+  --source-name azure-api
+
+# Add Azure target
+speakeasy configure targets \
+  --target-type typescript \
+  --source azure-api \
+  --target-name typescript-azure \
+  --sdk-class-name MySDKAzure \
+  --package-name "@myorg/my-sdk-azure" \
+  --output ./packages/azure
+
+# Generate all
+speakeasy run --output console
 ```
 
 ## Repository Structure
 
 ```
-my-multi-sdk/
+my-api-sdks/
+├── openapi.yaml              # Source spec
 ├── .speakeasy/
-│   ├── workflow.yaml       # Multi-target config
-│   └── gen.yaml            # Main SDK config
-├── src/                    # Main SDK source
-├── packages/
-│   ├── azure/
+│   └── workflow.yaml         # Multi-target config (created by CLI)
+├── sdks/
+│   ├── typescript/
 │   │   ├── .speakeasy/
-│   │   │   └── gen.yaml    # Azure-specific config
+│   │   │   └── gen.yaml      # Created by configure
 │   │   └── src/
-│   └── gcp/
+│   ├── python/
+│   │   ├── .speakeasy/
+│   │   │   └── gen.yaml
+│   │   └── src/
+│   └── go/
 │       ├── .speakeasy/
-│       │   └── gen.yaml    # GCP-specific config
-│       └── src/
-├── .github/workflows/
-│   ├── sdk_generation_main.yaml
-│   ├── sdk_generation_azure.yaml
-│   └── sdk_generation_gcp.yaml
-└── package.json
+│       │   └── gen.yaml
+│       └── go.mod
+└── .github/workflows/
+    └── sdk_generation.yaml
 ```
 
-## Per-Target gen.yaml
+## Running Generation
 
-Each variant has its own configuration:
+```bash
+# Generate all targets
+speakeasy run --output console
 
-```yaml
-# packages/azure/.speakeasy/gen.yaml
-configVersion: 2.0.0
-generation:
-  sdkClassName: MySDKAzure
-typescript:
-  version: 1.0.0
-  packageName: '@myorg/mysdk-azure'
-  envVarPrefix: MYSDK_AZURE
+# Generate specific target only
+speakeasy run -t typescript --output console
+speakeasy run -t python --output console
 ```
 
-## Naming Conventions
-
-| Variant | Package Name | Class Name |
-|---------|--------------|------------|
-| Main | `@myorg/mysdk` | `MySDK` |
-| Azure | `@myorg/mysdk-azure` | `MySDKAzure` |
-| GCP | `@myorg/mysdk-gcp` | `MySDKGCP` |
-
-## CI Workflow Per Target
-
-Create separate workflows for independent regeneration:
+## CI Workflow
 
 ```yaml
-# .github/workflows/sdk_generation_azure.yaml
-name: Generate Azure SDK
+# .github/workflows/sdk_generation.yaml
+name: Generate SDKs
 on:
+  push:
+    branches: [main]
+    paths: ['openapi.yaml']
   workflow_dispatch:
-    inputs:
-      force:
-        type: boolean
-        default: false
 
 jobs:
   generate:
     uses: speakeasy-api/sdk-generation-action/.github/workflows/workflow-executor.yaml@v15
     with:
-      target: azure-sdk
       mode: pr
     secrets:
       github_access_token: ${{ secrets.GITHUB_TOKEN }}
       speakeasy_api_key: ${{ secrets.SPEAKEASY_API_KEY }}
 ```
 
-## Versioning Strategies
+## What NOT to Do
 
-**Lockstep**: All variants share the same version (simpler).
+- **Do NOT create `.speakeasy/` directories manually** - Use `speakeasy quickstart` and `speakeasy configure`
+- **Do NOT write `workflow.yaml` or `gen.yaml` files directly** - Use CLI commands
+- **Do NOT copy `.speakeasy/` directories between projects** - Each needs its own config
 
-**Independent**: Each variant has its own version (more flexible).
+### Incorrect
 
-```yaml
-# Independent versioning
-# Main: version: 2.1.0
-# Azure: version: 1.8.0
-# GCP: version: 1.3.0
+```bash
+# WRONG: Do not do this
+mkdir -p .speakeasy
+cat > .speakeasy/workflow.yaml << 'EOF'
+...
+EOF
 ```
 
-## Sharing Code Across Variants
+### Correct
 
-**Option 1**: Duplicate hooks in each variant (simpler)
+```bash
+# RIGHT: Use CLI commands
+speakeasy quickstart --skip-interactive --output console \
+  -s openapi.yaml -t typescript -n "MySDK" -p "my-sdk"
 
-**Option 2**: Create shared package:
-```
-shared/
-├── package.json          # @myorg/mysdk-shared
-└── src/
-    └── hooks.ts
+speakeasy configure targets --target-type python --source my-source
 ```
 
 ## Troubleshooting
@@ -149,12 +244,39 @@ shared/
 | Issue | Solution |
 |-------|----------|
 | Wrong target generated | Specify `-t target-name` in `speakeasy run` |
-| Config not found | Ensure `.speakeasy/gen.yaml` exists in output dir |
-| Circular dependencies | Use workspace protocols in package.json |
+| Source not found | Run `speakeasy configure sources` to add it |
+| Target not found | Run `speakeasy configure targets` to add it |
+| Config out of sync | Run `speakeasy run` to regenerate |
+
+## After Making Changes
+
+After adding sources or targets, regenerate:
+
+```bash
+speakeasy run --output console
+```
+
+## After Making Changes
+
+After modifying workflow.yaml or per-target gen.yaml, **prompt the user** to regenerate the SDK(s):
+
+> **Configuration complete.** Would you like to regenerate the SDK(s) now with `speakeasy run`?
+
+If the user confirms, run:
+
+```bash
+# Generate all targets
+speakeasy run --output console
+
+# Or generate a specific target
+speakeasy run -t <target-name> --output console
+```
+
+Changes to workflow.yaml and gen.yaml only take effect after regeneration.
 
 ## Related Skills
 
-- `start-new-sdk-project` - Initial SDK setup
-- `configure-sdk-options` - Language-specific configuration
-- `manage-openapi-overlays` - Per-source overlays
-- `orchestrate-multi-repo-sdks` - Single repo per language
+- `start-new-sdk-project` - Initial SDK setup for single target
+- `configure-sdk-options` - Language-specific gen.yaml options
+- `manage-openapi-overlays` - Spec customization with overlays
+- `orchestrate-multi-repo-sdks` - Separate repository per language

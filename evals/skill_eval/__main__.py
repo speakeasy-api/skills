@@ -3,6 +3,7 @@
 import asyncio
 import json
 from pathlib import Path
+from typing import Any
 
 import click
 from rich.console import Console
@@ -12,8 +13,43 @@ from rich.panel import Panel
 from .runner import EvalRunner
 from .reporter import Reporter
 from .tracker import EvalTracker
+from .observer import RichConsoleObserver
 
 console = Console()
+
+
+def print_test_summary(result: dict[str, Any]) -> None:
+    """Print a concise summary after each test completes."""
+    name = result.get("name", "unknown")
+    passed = result.get("passed", False)
+    status = "[bold green]PASSED[/bold green]" if passed else "[bold red]FAILED[/bold red]"
+
+    # Build summary line
+    parts = [f"{status} {name}"]
+
+    # Add score if available (for overlay tests)
+    if result.get("overlays"):
+        for overlay in result["overlays"]:
+            for check in overlay.get("checks", []):
+                if check.get("name") == "scoring_summary":
+                    score = check.get("score", 0)
+                    max_score = check.get("max_score", 0)
+                    pct = (score / max_score * 100) if max_score > 0 else 0
+                    parts.append(f"[dim]({score}/{max_score} = {pct:.0f}%)[/dim]")
+                    break
+
+    # Add cost and turns if available
+    if result.get("cost_usd"):
+        parts.append(f"[dim]${result['cost_usd']:.2f}[/dim]")
+    if result.get("turns_used"):
+        parts.append(f"[dim]{result['turns_used']} turns[/dim]")
+
+    # Add error if failed
+    if not passed and result.get("error"):
+        parts.append(f"[red]- {result['error'][:50]}...[/red]" if len(result.get("error", "")) > 50 else f"[red]- {result.get('error')}[/red]")
+
+    console.print(" | ".join(parts))
+    console.print()  # Blank line between tests
 
 
 @click.group()
@@ -34,23 +70,29 @@ def cli():
     help="Test suite to run"
 )
 @click.option("--skill", help="Run tests for specific skill only")
+@click.option("--skills", help="Comma-separated list of specific skills to install (default: all)")
 @click.option("--test", "test_filter", help="Run tests matching this name pattern")
 @click.option("--output", "-o", type=click.Path(), help="Output results to JSON file")
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
+@click.option("--debug", "-d", is_flag=True, help="Stream agent events in real-time (tool calls, thinking, text)")
 @click.option("--model", default="claude-sonnet-4-20250514", help="Model to use for agent")
 @click.option("--max-concurrent", default=3, help="Max concurrent test runs")
 @click.option("--track/--no-track", default=True, help="Track results in VCS history")
 @click.option("--keep-workspaces", is_flag=True, help="Keep workspace directories for debugging")
+@click.option("--no-skills", is_flag=True, help="Run without any skills installed")
 def run(
     suite: str,
     skill: str | None,
+    skills: str | None,
     test_filter: str | None,
     output: str | None,
     verbose: bool,
+    debug: bool,
     model: str,
     max_concurrent: int,
     track: bool,
     keep_workspaces: bool,
+    no_skills: bool,
 ):
     """Run skill evaluations.
 
@@ -59,29 +101,75 @@ def run(
         skill-eval run --suite generation
         skill-eval run --skill start-new-sdk-project
         skill-eval run --test typescript -v
+        skill-eval run --test typescript --debug  # Stream agent events
         skill-eval run --no-track  # Skip history tracking
         skill-eval run --keep-workspaces  # Keep workspaces for debugging
+        skill-eval run --skills speakeasy-context  # Only install speakeasy-context skill
+        skill-eval run --no-skills  # Run without any skills
+        skill-eval run --debug  # Stream agent events
     """
     runner = EvalRunner(model=model, verbose=verbose)
-    # TODO: Add keep_workspaces support to EvalRunner
     reporter = Reporter(console)
     tracker = EvalTracker() if track else None
 
+    # Parse skill names if provided
+    skill_names = [s.strip() for s in skills.split(",")] if skills else None
+    with_skills = not no_skills
+
+    # Create observer for debug mode
+    observer = RichConsoleObserver(console) if debug else None
+
+    skill_desc = "no skills" if no_skills else (f"skills: {', '.join(skill_names)}" if skill_names else "all skills")
     console.print(Panel.fit(
         f"[bold]Running {suite} evaluations[/bold]\n"
         f"Model: {model}\n"
-        f"Concurrent: {max_concurrent}\n"
-        f"Tracking: {'enabled' if track else 'disabled'}",
+        f"Skills: {skill_desc}\n"
+        f"Concurrent: {1 if debug else max_concurrent}\n"
+        f"Tracking: {'enabled' if track else 'disabled'}"
+        + ("\n[yellow]Debug mode: streaming agent events[/yellow]" if debug else ""),
         title="Skill Eval"
     ))
 
-    with console.status("[bold green]Running evaluations..."):
+    # Use callback for immediate summaries when running sequentially
+    sequential = debug or max_concurrent == 1
+    on_complete = print_test_summary if sequential else None
+
+    if debug:
+        console.print("[dim]Debug mode: streaming agent events...[/dim]\n")
         results = asyncio.run(runner.run(
             suite=suite,
             skill_filter=skill,
             test_filter=test_filter,
             max_concurrent=max_concurrent,
+            with_skills=with_skills,
+            skill_names=skill_names,
+            observer=observer,
+            keep_workspaces=keep_workspaces,
+            on_test_complete=on_complete,
         ))
+    else:
+        if sequential:
+            # No status spinner when printing per-test summaries
+            results = asyncio.run(runner.run(
+                suite=suite,
+                skill_filter=skill,
+                test_filter=test_filter,
+                max_concurrent=max_concurrent,
+                with_skills=with_skills,
+                skill_names=skill_names,
+                keep_workspaces=keep_workspaces,
+                on_test_complete=on_complete,
+            ))
+        else:
+            with console.status("[bold green]Running evaluations..."):
+                results = asyncio.run(runner.run(
+                    suite=suite,
+                    skill_filter=skill,
+                    test_filter=test_filter,
+                    max_concurrent=max_concurrent,
+                    with_skills=with_skills,
+                    skill_names=skill_names,
+                ))
 
     reporter.print_results(results)
 
@@ -100,22 +188,40 @@ def run(
 @cli.command()
 @click.argument("test_name")
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
+@click.option("--debug", "-d", is_flag=True, help="Stream agent events in real-time (tool calls, thinking, text)")
 @click.option("--model", default="claude-sonnet-4-20250514", help="Model to use for agent")
+@click.option("--skills", help="Comma-separated list of specific skills to install (default: all)")
+@click.option("--no-skills", is_flag=True, help="Run without any skills installed")
 @click.option("--output", "-o", type=click.Path(), help="Output results to JSON file")
-def single(test_name: str, verbose: bool, model: str, output: str | None):
+@click.option("--keep-workspaces", is_flag=True, help="Keep workspace directories for debugging")
+def single(test_name: str, verbose: bool, debug: bool, model: str, skills: str | None, no_skills: bool, output: str | None, keep_workspaces: bool):
     """Run a single test by name.
 
     Examples:
 
         skill-eval single typescript-sdk-from-clean-spec
         skill-eval single fix-poor-naming-with-overlay -v
+        skill-eval single typescript-sdk-from-clean-spec --debug
+        skill-eval single typescript-sdk-from-clean-spec --skills speakeasy-context
+        skill-eval single typescript-sdk-from-clean-spec --keep-workspaces
     """
     runner = EvalRunner(model=model, verbose=verbose)
 
+    # Parse skill names if provided
+    skill_names = [s.strip() for s in skills.split(",")] if skills else None
+    with_skills = not no_skills
+
     console.print(f"[bold]Running test: {test_name}[/bold]\n")
 
-    with console.status("[bold green]Running evaluation..."):
-        result = asyncio.run(runner.run_single(test_name))
+    # Create observer for debug mode
+    observer = RichConsoleObserver(console) if debug else None
+
+    if debug:
+        console.print("[dim]Debug mode: streaming agent events...[/dim]\n")
+        result = asyncio.run(runner.run_single(test_name, with_skills=with_skills, skill_names=skill_names, observer=observer, keep_workspaces=keep_workspaces))
+    else:
+        with console.status("[bold green]Running evaluation..."):
+            result = asyncio.run(runner.run_single(test_name, with_skills=with_skills, skill_names=skill_names, keep_workspaces=keep_workspaces))
 
     # Print result details
     if result.get("passed"):
@@ -139,9 +245,62 @@ def single(test_name: str, verbose: bool, model: str, output: str | None):
 
     if result.get("checks"):
         console.print("\n[bold]Checks:[/bold]")
+        scoring_summary = None
         for check in result["checks"]:
+            # Extract scoring summary for special display
+            if check.get("name") == "scoring_summary":
+                scoring_summary = check
+                continue
             status = "[green]✓[/green]" if check.get("passed") else "[red]✗[/red]"
-            console.print(f"  {status} {check.get('name', check.get('details', ''))}")
+            details = check.get("details", check.get("name", ""))
+            console.print(f"  {status} {details}")
+
+        # Display scoring summary prominently if present
+        if scoring_summary:
+            score = scoring_summary.get("score", 0)
+            max_score = scoring_summary.get("max_score", 0)
+            required = scoring_summary.get("required_score", 0)
+            max_required = scoring_summary.get("max_required", 0)
+            bonus = scoring_summary.get("bonus_score", 0)
+            max_bonus = scoring_summary.get("max_bonus", 0)
+
+            console.print(f"\n[bold]Scoring:[/bold]")
+            pct = (score / max_score * 100) if max_score > 0 else 0
+            color = "green" if pct >= 80 else "yellow" if pct >= 50 else "red"
+            console.print(f"  [{color}]Total: {score}/{max_score} points ({pct:.0f}%)[/{color}]")
+            console.print(f"  [dim]Required: {required}/{max_required}[/dim]")
+            if max_bonus > 0:
+                console.print(f"  [dim]Bonus: {bonus}/{max_bonus}[/dim]")
+
+    # Display overlay-specific results
+    if result.get("overlays"):
+        for overlay in result["overlays"]:
+            console.print(f"\n[bold]Overlay: {overlay.get('file', 'unknown')}[/bold]")
+            for check in overlay.get("checks", []):
+                if check.get("name") == "scoring_summary":
+                    score = check.get("score", 0)
+                    max_score = check.get("max_score", 0)
+                    required = check.get("required_score", 0)
+                    max_required = check.get("max_required", 0)
+                    bonus = check.get("bonus_score", 0)
+                    max_bonus = check.get("max_bonus", 0)
+
+                    pct = (score / max_score * 100) if max_score > 0 else 0
+                    color = "green" if pct >= 80 else "yellow" if pct >= 50 else "red"
+                    console.print(f"  [{color}]Score: {score}/{max_score} points ({pct:.0f}%)[/{color}]")
+                    console.print(f"  [dim]Required: {required}/{max_required}, Bonus: {bonus}/{max_bonus}[/dim]")
+                else:
+                    status = "[green]✓[/green]" if check.get("passed") else "[red]✗[/red]"
+                    details = check.get("details", check.get("name", ""))
+                    console.print(f"  {status} {details}")
+
+    # Display API validation results
+    if result.get("api_validation") and result["api_validation"].get("performed"):
+        console.print(f"\n[bold]API Validation:[/bold]")
+        console.print(f"  [dim]{result['api_validation'].get('summary', 'completed')}[/dim]")
+        for check in result["api_validation"].get("checks", []):
+            status = "[green]✓[/green]" if check.get("passed") else "[yellow]![/yellow]"
+            console.print(f"  {status} {check.get('details', check.get('name', ''))}")
 
     if result.get("speakeasy_commands"):
         console.print(f"\n[bold]Speakeasy commands used:[/bold]")
@@ -164,6 +323,9 @@ def single(test_name: str, verbose: bool, model: str, output: str | None):
 
     if result.get("cost_usd"):
         console.print(f"\n[dim]Cost: ${result['cost_usd']:.4f}[/dim]")
+
+    if result.get("workspace_dir"):
+        console.print(f"\n[yellow]Workspace preserved: {result['workspace_dir']}[/yellow]")
 
     if output:
         Path(output).write_text(json.dumps(result, indent=2, default=str))
@@ -321,26 +483,87 @@ def trend(count: int):
 @cli.command()
 @click.option("--suite", type=click.Choice(["all", "generation", "overlay", "diagnosis", "workflow"]), required=True)
 @click.option("--model", default="claude-sonnet-4-20250514", help="Model to use")
-def compare(suite: str, model: str):
+@click.option("--debug", "-d", is_flag=True, help="Stream agent events in real-time (tool calls, thinking, text)")
+@click.option("--skills", help="Comma-separated list of specific skills to install (default: all)")
+@click.option("--test", "test_filter", help="Run tests matching this name pattern")
+@click.option("--keep-workspaces", is_flag=True, help="Keep workspace directories for debugging")
+def compare(suite: str, model: str, debug: bool, skills: str | None, test_filter: str | None, keep_workspaces: bool):
     """Compare results with and without skills loaded.
 
     This helps measure the effectiveness of skills by comparing
     agent performance with skill context vs without.
+
+    Examples:
+
+        skill-eval compare --suite generation
+        skill-eval compare --suite generation --skills speakeasy-context
+        skill-eval compare --suite generation --skills speakeasy-context,start-new-sdk-project
+        skill-eval compare --suite generation --test typescript
+        skill-eval compare --suite generation --test typescript --debug
+        skill-eval compare --suite generation --keep-workspaces
     """
     runner = EvalRunner(model=model)
     reporter = Reporter(console)
 
-    console.print(f"\n[bold]Comparing {suite} results with/without skills[/bold]\n")
+    # Parse skill names if provided
+    skill_names = [s.strip() for s in skills.split(",")] if skills else None
+
+    # Create observer for debug mode
+    observer = RichConsoleObserver(console) if debug else None
+
+    skill_desc = f"skills: {', '.join(skill_names)}" if skill_names else "all skills"
+    console.print(f"\n[bold]Comparing {suite} results with/without {skill_desc}[/bold]\n")
+    if debug:
+        console.print("[dim]Debug mode: streaming agent events...[/dim]\n")
 
     console.print("[bold]Running WITHOUT skills...[/bold]")
-    with console.status("[yellow]Testing base model..."):
-        results_without = asyncio.run(runner.run(suite=suite, with_skills=False))
+    if debug:
+        results_without = asyncio.run(runner.run(suite=suite, with_skills=False, test_filter=test_filter, observer=observer, keep_workspaces=keep_workspaces))
+    else:
+        with console.status("[yellow]Testing base model..."):
+            results_without = asyncio.run(runner.run(suite=suite, with_skills=False, test_filter=test_filter, keep_workspaces=keep_workspaces))
 
     console.print("\n[bold]Running WITH skills...[/bold]")
-    with console.status("[green]Testing with skills..."):
-        results_with = asyncio.run(runner.run(suite=suite, with_skills=True))
+    if debug:
+        results_with = asyncio.run(runner.run(suite=suite, with_skills=True, skill_names=skill_names, test_filter=test_filter, observer=observer, keep_workspaces=keep_workspaces))
+    else:
+        with console.status("[green]Testing with skills..."):
+            results_with = asyncio.run(runner.run(suite=suite, with_skills=True, skill_names=skill_names, test_filter=test_filter, keep_workspaces=keep_workspaces))
 
     reporter.print_comparison(results_without, results_with)
+
+
+@cli.command("clear-cache")
+def clear_cache():
+    """Clear the fixture cache (cloned git repositories).
+
+    Examples:
+
+        skill-eval clear-cache
+    """
+    runner = EvalRunner()
+    cache_dir = runner.fixture_loader.cache_dir
+
+    if not cache_dir.exists() or not any(cache_dir.iterdir()):
+        console.print("[green]Cache is empty[/green]")
+        return
+
+    # Count cached repos
+    repos = list(cache_dir.iterdir())
+    total_size = sum(
+        sum(f.stat().st_size for f in repo.rglob('*') if f.is_file())
+        for repo in repos if repo.is_dir()
+    )
+    size_mb = total_size / (1024 * 1024)
+
+    console.print(f"[bold]Cached repositories: {len(repos)}[/bold]")
+    console.print(f"[dim]Total size: {size_mb:.1f} MB[/dim]\n")
+
+    for repo in repos:
+        console.print(f"  {repo.name}")
+
+    runner.fixture_loader.clear_cache()
+    console.print(f"\n[green]Cache cleared![/green]")
 
 
 if __name__ == "__main__":

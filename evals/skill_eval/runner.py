@@ -2,11 +2,15 @@
 
 import asyncio
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import yaml
 
-from .evaluator import SkillEvaluator
+from .evaluator import ExecutionObserver, SkillEvaluator
+from .fixtures import FixtureLoader
+
+# Type for callback after each test completes
+OnTestComplete = Callable[[dict[str, Any]], None]
 
 
 class EvalRunner:
@@ -18,6 +22,7 @@ class EvalRunner:
         self.tests_dir = Path(__file__).parent.parent / "tests"
         self.fixtures_dir = Path(__file__).parent.parent / "fixtures"
         self.skills_dir = Path(__file__).parent.parent.parent / "skills"
+        self.fixture_loader = FixtureLoader(self.fixtures_dir)
 
     def load_tests(self, suite: str) -> list[dict[str, Any]]:
         """Load test cases from YAML files."""
@@ -31,14 +36,8 @@ class EvalRunner:
                     data = yaml.safe_load(f)
                     for test in data.get("tests", []):
                         test["suite"] = s
-                        # Load spec content from file if spec_file is provided
-                        if "spec_file" in test:
-                            spec_path = self.fixtures_dir.parent / test["spec_file"]
-                            if spec_path.exists():
-                                test["spec"] = spec_path.read_text()
-                            else:
-                                test["spec"] = None
-                                test["error"] = f"Spec file not found: {test['spec_file']}"
+                        # Use fixture loader for all fixture types
+                        test = self.fixture_loader.load(test)
                         tests.append(test)
         return tests
 
@@ -51,15 +50,37 @@ class EvalRunner:
         skill_path = self.skills_dir / skill_name / "SKILL.md"
         return skill_path.read_text() if skill_path.exists() else None
 
+    def clear_fixture_cache(self) -> None:
+        """Clear the fixture loader's repo cache."""
+        self.fixture_loader.clear_cache()
+        if self.verbose:
+            print("Fixture cache cleared")
+
     async def run(
         self,
         suite: str = "all",
         skill_filter: str | None = None,
         test_filter: str | None = None,
         with_skills: bool = True,
+        skill_names: list[str] | None = None,
         max_concurrent: int = 3,
+        observer: ExecutionObserver | None = None,
+        keep_workspaces: bool = False,
+        on_test_complete: OnTestComplete | None = None,
     ) -> dict[str, Any]:
-        """Run evaluation suite."""
+        """Run evaluation suite.
+
+        Args:
+            suite: Test suite to run ("all", "generation", "overlay", "diagnosis", "workflow")
+            skill_filter: Only run tests for this skill
+            test_filter: Only run tests matching this name pattern
+            with_skills: If True, install skills in workspace
+            skill_names: Optional list of specific skill names to install. If None and with_skills=True, installs all.
+            max_concurrent: Maximum concurrent test runs
+            observer: Optional observer for real-time event streaming (forces max_concurrent=1)
+            keep_workspaces: If True, preserve workspace directories after evaluation
+            on_test_complete: Optional callback called after each test completes with the result dict
+        """
         tests = self.load_tests(suite)
 
         if skill_filter:
@@ -80,6 +101,7 @@ class EvalRunner:
             "failed": 0,
             "skipped": len(skipped_tests),
             "details": [],
+            "skill_names": skill_names,
         }
 
         # Add skipped tests to results
@@ -94,14 +116,19 @@ class EvalRunner:
             })
 
         # Run valid tests with concurrency limit
-        sem = asyncio.Semaphore(max_concurrent)
+        # Force sequential execution when observer is provided to avoid interleaved output
+        effective_max_concurrent = 1 if observer else max_concurrent
+        sem = asyncio.Semaphore(effective_max_concurrent)
 
         async def run_test(test: dict) -> dict:
             async with sem:
                 if self.verbose:
                     print(f"Running: {test.get('name', 'unnamed')}...")
-                result = await evaluator.evaluate(test, with_skills=with_skills)
+                result = await evaluator.evaluate(test, with_skills=with_skills, skill_names=skill_names, observer=observer, keep_workspaces=keep_workspaces)
                 result["name"] = test.get("name", "unnamed")
+                # Call callback immediately after test completes (useful for sequential runs)
+                if on_test_complete:
+                    on_test_complete(result)
                 return result
 
         if valid_tests:
@@ -117,8 +144,23 @@ class EvalRunner:
         results["pass_rate"] = results["passed"] / results["total"] if results["total"] > 0 else 0
         return results
 
-    async def run_single(self, test_name: str, with_skills: bool = True) -> dict[str, Any]:
-        """Run a single test by name."""
+    async def run_single(
+        self,
+        test_name: str,
+        with_skills: bool = True,
+        skill_names: list[str] | None = None,
+        observer: ExecutionObserver | None = None,
+        keep_workspaces: bool = False,
+    ) -> dict[str, Any]:
+        """Run a single test by name.
+
+        Args:
+            test_name: Name of the test to run
+            with_skills: If True, install skills in workspace
+            skill_names: Optional list of specific skill names to install
+            observer: Optional observer for real-time event streaming
+            keep_workspaces: If True, preserve workspace directory after evaluation
+        """
         all_tests = []
         for suite in ["generation", "overlay", "diagnosis", "workflow"]:
             all_tests.extend(self.load_tests(suite))
@@ -131,7 +173,7 @@ class EvalRunner:
             return {"passed": False, "error": test["error"]}
 
         evaluator = SkillEvaluator(model=self.model)
-        result = await evaluator.evaluate(test, with_skills=with_skills)
+        result = await evaluator.evaluate(test, with_skills=with_skills, skill_names=skill_names, observer=observer, keep_workspaces=keep_workspaces)
         result["name"] = test_name
         return result
 
@@ -139,10 +181,18 @@ class EvalRunner:
         self,
         suite: str,
         skill_filter: str | None = None,
+        skill_names: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Compare results with and without skill context."""
+        """Compare results with and without skill context.
+
+        Args:
+            suite: Test suite to run
+            skill_filter: Only run tests for this skill
+            skill_names: Optional list of specific skill names to install for the "with" run.
+                         If None, installs all skills.
+        """
         without_results = await self.run(suite=suite, skill_filter=skill_filter, with_skills=False)
-        with_results = await self.run(suite=suite, skill_filter=skill_filter, with_skills=True)
+        with_results = await self.run(suite=suite, skill_filter=skill_filter, with_skills=True, skill_names=skill_names)
 
         return {
             "without_skills": without_results,
