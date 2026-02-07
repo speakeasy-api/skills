@@ -1,6 +1,6 @@
 # Skill Evaluation Framework
 
-Inspired by [Vercel's agents.md evaluation methodology](https://vercel.com/blog/agents-md-outperforms-skills-md-in-our-agent-evals), this framework measures Speakeasy skill efficacy using behavioral assertions rather than implementation details.
+Inspired by [Vercel's agents.md evaluation methodology](https://vercel.com/blog/agents-md-outperforms-skills-in-our-agent-evals), this framework measures Speakeasy skill efficacy using behavioral assertions rather than implementation details.
 
 ## Core Principles
 
