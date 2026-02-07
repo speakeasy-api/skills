@@ -1,6 +1,6 @@
 ---
 name: generate-mcp-server
-description: Use when generating an MCP server from an OpenAPI spec with Speakeasy. Triggers on "generate MCP server", "MCP server", "Model Context Protocol", "AI assistant tools", "Claude tools", "speakeasy MCP", "enableMCPServer"
+description: Use when generating an MCP server from an OpenAPI spec with Speakeasy. Triggers on "generate MCP server", "MCP server", "Model Context Protocol", "AI assistant tools", "Claude tools", "speakeasy MCP", "mcp-typescript"
 license: Apache-2.0
 ---
 
@@ -15,7 +15,7 @@ Generate a Model Context Protocol (MCP) server from an OpenAPI spec using Speake
 - User wants AI assistants to interact with their API
 - User says: "generate MCP server", "create MCP server", "speakeasy MCP"
 - User asks: "How do I make my API available to Claude?"
-- User mentions: "enableMCPServer", "AI assistant tools", "Claude tools"
+- User mentions: "mcp-typescript", "AI assistant tools", "Claude tools"
 
 ## Inputs
 
@@ -116,11 +116,13 @@ sources:
     output: openapi.yaml
 targets:
   mcp-server:
-    target: typescript
+    target: mcp-typescript
     source: My-API
 ```
 
 Replace `./openapi.yaml` with the actual spec path or URL.
+
+> **Important:** Use the standalone `mcp-typescript` target, not `typescript` with `enableMCPServer: true`. The embedded approach (`enableMCPServer` flag) is deprecated.
 
 ### Step 3: Configure gen.yaml
 
@@ -138,12 +140,11 @@ generation:
 typescript:
   version: 1.0.0
   packageName: my-api-mcp
-  enableMCPServer: true
   envVarPrefix: MYAPI
 ```
 
 Key settings:
-- `enableMCPServer: true` -- this is what triggers MCP server generation
+- `target: mcp-typescript` in `workflow.yaml` -- this is what triggers MCP server generation
 - `packageName` -- the npm package name users will `npx`
 - `envVarPrefix` -- prefix for auto-generated env var names
 
@@ -284,7 +285,7 @@ sources:
     output: openapi.yaml
 targets:
   mcp-server:
-    target: typescript
+    target: mcp-typescript
     source: petstore
 EOF
 
@@ -297,7 +298,6 @@ generation:
 typescript:
   version: 1.0.0
   packageName: petstore-mcp
-  enableMCPServer: true
   envVarPrefix: PETSTORE
 EOF
 
@@ -336,7 +336,8 @@ The generated project contains:
 - **Do NOT** hardcode API tokens in Claude Desktop or Claude Code config files -- use environment variables or secrets managers
 - **Do NOT** expose all operations without reviewing them -- disable sensitive admin endpoints
 - **Do NOT** skip spec validation -- invalid specs produce broken MCP servers
-- **Do NOT** set `enableMCPServer` without also creating a scopes overlay -- tools will lack scope definitions
+- **Do NOT** use the deprecated `enableMCPServer: true` flag in gen.yaml -- use the standalone `mcp-typescript` target in workflow.yaml instead
+- **Do NOT** generate without a scopes overlay -- tools will lack scope definitions
 - **Do NOT** use the generated MCP server as a general SDK -- it is purpose-built for AI assistant integration
 
 ## Troubleshooting
@@ -364,19 +365,21 @@ npx my-api-mcp mcp start --help
 
 **Fix:** Verify the scopes overlay is listed in `workflow.yaml` under `overlays:` and that operations have `disabled: false`.
 
-### Generation fails with enableMCPServer
+### Generation fails with mcp-typescript target
 
-**Symptom:** `speakeasy run` fails when `enableMCPServer: true`.
+**Symptom:** `speakeasy run` fails when using `target: mcp-typescript`.
 
-**Cause:** Usually a spec validation issue or missing workflow config.
+**Cause:** Usually a spec validation issue, missing workflow config, or using the deprecated `enableMCPServer` flag instead of the `mcp-typescript` target.
 
 **Fix:**
 ```bash
 # Validate spec first
 speakeasy lint openapi --non-interactive -s ./openapi.yaml
 
-# Check workflow references correct source and overlay paths
+# Ensure workflow.yaml uses target: mcp-typescript (NOT target: typescript with enableMCPServer)
 cat .speakeasy/workflow.yaml
+
+# Remove enableMCPServer from gen.yaml if present -- it is deprecated
 ```
 
 ### Tools missing expected operations
