@@ -1,6 +1,6 @@
 ---
 name: speakeasy-context
-description: Speakeasy workflow: run 'agent context' FIRST, do task, run 'agent feedback' LAST. Triggers on speakeasy, SDK, OpenAPI.
+description: "Speakeasy workflow: run 'agent context' FIRST, do task, run 'agent feedback' LAST. Triggers on speakeasy, SDK, OpenAPI."
 license: Apache-2.0
 ---
 
